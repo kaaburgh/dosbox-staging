@@ -77,9 +77,12 @@ lifecycles, and rejects overlapping simultaneously-live native ranges.
   timedemo profiles, 145.2 and 141.7 FPS using SDL software texture; created
   7,724 and 7,722 blocks; invalidated 185 each; 659 and 655 JIT RIP
   samples matched. See `evidence/quake106-top30-guest-blocks.csv`.
-- **0.84.0-alpha:** source port requires fresh build and integration
-  validation; do not reuse historical absolute addresses or FPS as
-  evidence for 0.84.
+- **0.84.0-alpha:** the port built and successfully ran original
+  Quake 1.06 in the local Linux container, plus real DOS self-modification
+  and cross-page code modification probes. The detailed 0.84 evidence is
+  in `evidence/quake106-084-integration.md` and
+  `evidence/p0-local-regressions-2026-11-07.md`. Do not compare
+  FPS across unrelated containers or compiler environments.
 - The preexisting 0.83 sample evidence is available in the
   [original research PR](https://github.com/kaaburgh/configs/pull/4).
 - No game binary or proprietary PAK assets are checked in here.
@@ -96,6 +99,35 @@ The trace should show creation and invalidation of native JIT code. Confirm
 the marker file exists before assessing the lifecycle trace. This synthetic
 probe checks one self-modification path; it is not a proof for every cache
 reset/cross-page scenario.
+
+## Deterministic native JIT-cache wraparound regression
+
+`cache_wrap_stress.asm` creates a 16-bit `WRAP.COM` with **16,000 distinct
+guest basic blocks**. Every block increments `BX` and ends with a short
+unconditional jump. The program verifies `BX == 16000` and writes
+`WRAP.OK` containing `OK\r\n` only if the computation is correct.
+
+```sh
+nasm -f bin extras/guest-block-mapping/cache_wrap_stress.asm -o WRAP.COM
+```
+
+The local 0.84 run with a standard **8 MiB native JIT-cache** completed
+successfully. Its trace contains **16,025 JIT creations** and ~1.87 MiB
+of emitted native instructions. Therefore a separate build temporarily
+reducing `CACHE_TOTAL` to **1 MiB** must exercise actual code-cache
+wraparound. Crucially, *the small-cache build is a stress-only build*, not
+an optimization or an upstream change. Validate after local execution:
+
+1. `WRAP.OK` contains exactly `OK\r\n` (semantic correctness).
+2. The trace shows native code-cache addresses reused by **distinct
+   generation IDs** (actual recycling, not a simulated epoch).
+3. Running `analyze_trace.py --trace ...` does not reject lifecycle
+   events or overlapping simultaneously-live native ranges.
+4. Test with several repeated invocations in one DOSBox process to
+   exercise multiple wraparound epochs.
+
+Do not claim the real wraparound path passed unless these four
+conditions are actually observed.
 
 ## Open correctness checks
 
