@@ -1,0 +1,31 @@
+name: Quake native instruction attribution
+
+on:
+  push:
+    branches: [experiments/quake-native-instruction-attribution]
+  pull_request:
+    paths:
+      - 'extras/guest-block-mapping/resolve_native_instructions.py'
+      - 'extras/guest-block-mapping/test_resolve_native_instructions.py'
+      - '.github/workflows/jit-native-instruction-attribution.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  instruction-resolution:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify objdump and Python
+        run: |
+          objdump --version | head -1
+          python3 -m py_compile extras/guest-block-mapping/resolve_native_instructions.py
+      - name: Synthetic instruction and RIP validation
+        run: |
+          python3 -m unittest discover -s extras/guest-block-mapping \
+            -p 'test_resolve_native_instructions.py' -v
+      - name: Existing generation-aware RIP tests
+        run: |
+          python3 -m unittest discover -s extras/guest-block-mapping \
+            -p 'test_analyze_native_rips.py' -v
