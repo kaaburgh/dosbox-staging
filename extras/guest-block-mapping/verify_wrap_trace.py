@@ -12,7 +12,7 @@ from collections import Counter
 from pathlib import Path
 import json
 
-from analyze_trace import events_from_csv, classify
+from analyze_trace import events_from_csv, classify, reject_recorder_io_errors
 
 EXPECTED_EIPS = {0x107 + 3 * i for i in range(16000)}
 
@@ -86,8 +86,11 @@ def main() -> None:
     p.add_argument('--marker', type=Path, action='append', required=True,
                    help='repeat for each independent guest execution')
     p.add_argument('--require-reuse', action='store_true')
+    p.add_argument('--dosbox-log', type=Path, help='reject even cleanly truncated logs on reported I/O error')
     p.add_argument('--output-json', type=Path)
     a = p.parse_args()
+    if a.dosbox_log:
+        reject_recorder_io_errors(a.dosbox_log)
     result = verify(a.trace, a.marker, a.require_reuse)
     if a.output_json:
         a.output_json.write_text(json.dumps(result, indent=2) + '\n')
