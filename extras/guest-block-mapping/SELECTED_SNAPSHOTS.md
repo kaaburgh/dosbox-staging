@@ -53,3 +53,25 @@ c++ -std=c++20 -O2 -Wall -Wextra -Werror \
 The autonomous test verifies EIP filtering, exact guest/native bytes, the lifecycle generation key and incomplete cross-page snapshots. The planned integration test will use original DOS Quake 1.06, compare live guest bytes with the embedded COFF .text at corresponding EIPs, and disassemble the generated native blocks locally.
 
 **Review order:** this is a stacked research PR based on `experiments/quake-guest-block-mapping`. Do not merge it to `main` before PR #1 is merged/rebased; the changes in this PR depend on `jit_trace_id` from PR #1. This PR deliberately does not change x86 instruction semantics or claim any FPS improvement.
+
+## Completed local Quake integration (2026-11-07)
+
+The diagnostic binary built from **source commit `630e0533c344fed69b0838d3d71c373a1545d5f6`** executed the unmodified DOS Quake 1.06 `demo1` (969 frames) twice in the assistant's local Linux x86-64 environment.
+
+- Run A: 7,845 CREATE / 185 INVALIDATE, **9/9** selected snapshots complete.
+- Run B: 7,850 CREATE / 185 INVALIDATE, **9/9** selected snapshots complete.
+- Each snapshot's generation and guest/native intervals matched the matching event in its run's JIT block lifecycle CSV. Binary payload lengths matched metadata.
+- Guest bytes and the sequence of native JIT mnemonics **match across the two runs for all 9 EIPs**; raw native bytes differ due ASLR/host pointer values.
+- **Four surface mip blocks** had the original `0x12345678` x86 displacement replaced in live guest memory by `0x0018007c` (6, 7, 6 and 2 occurrences); the other five blocks matched the original Quake 1.06 COFF bytes.
+- Native disassembly shows fast TLB memory accesses, conditional branches, and helper fallbacks. **Static call-site counts are not executed-call counts**, and full generated blocks include deferred slow paths.
+
+The derived per-block report is stored in
+[configs/research/selected-guest-native-snapshots-2026-11-07.md](https://github.com/kaaburgh/configs/blob/bench/quake-p0-p1-local-builds/benchmarks/quake-staging/research/selected-guest-native-snapshots-2026-11-07.md).
+Raw snapshots contain game machine code and remain private. No benchmark speedup
+or native-instruction-level attribution is claimed.
+
+**Runtime integration detail:** DOSBox Staging 0.84 needs its Unicode mapping
+resources to be locatable. Running the executable from a directory without
+`resources/mapping` makes the mounted game directory appear empty
+(`Illegal command: quake.exe`). The external local runner now sets its working
+directory to the fork checkout containing `resources`.
