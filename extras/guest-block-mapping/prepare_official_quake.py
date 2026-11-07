@@ -79,9 +79,9 @@ def main():
     for helper in ("CWSDPMI.EXE", "DOS4GW.EXE", "GO32.EXE"):
         key = root + helper.casefold()
         if key in files:
-            data = files[key][1]
-            (args.game_dir / helper).write_bytes(data)
-            helpers.append({"name": helper, "sha256": sha256(data).hexdigest()})
+            helper_bytes = files[key][1]
+            (args.game_dir / helper).write_bytes(helper_bytes)
+            helpers.append({"name": helper, "sha256": sha256(helper_bytes).hexdigest()})
     args.manifest.write_text(json.dumps({
         "benchmark_archive_sha256": sha256(data).hexdigest(),
         "quake_exe_sha256": sha256(exe).hexdigest(),
