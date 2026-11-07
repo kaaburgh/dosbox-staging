@@ -1905,6 +1905,11 @@ static void dyn_larlsl(bool islar) {
 
 static CacheBlock * CreateCacheBlock(CodePageHandler * codepage,PhysPt start,Bitu max_opcodes) {
 	Bits i;
+#ifdef DOSBOX_JIT_BLOCK_TRACE
+	// Capture the address before decode modifies the guest instruction pointer.
+	const auto guest_cs = static_cast<uint16_t>(SegValue(cs));
+	const auto guest_eip = static_cast<uint32_t>(reg_eip);
+#endif
 /* Init a load of variables */
 	decode.code_start=start;
 	decode.code=start;
@@ -2730,6 +2735,16 @@ finish_block:
 	const auto cache_flush_bytes = decode.block->cache.size;
 	dyn_cache_invalidate(cache_addr, cache_flush_bytes);
 	assert(decode.block->cache.size <= cache_bytes);
+#ifdef DOSBOX_JIT_BLOCK_TRACE
+	// The emitted native interval is exact; the decoder's guest end is advisory
+	// (e.g., cross-page decoding) and should not be interpreted as a file offset.
+	const auto native_bytes = static_cast<size_t>(
+	        cache.pos - decode.block->cache.start);
+	JitBlockTrace_Create(*decode.block,
+	                     static_cast<uint32_t>(start),
+	                     static_cast<uint32_t>(decode.code),
+	                     guest_cs, guest_eip, native_bytes);
+#endif
 	//	LOG_MSG("Created block size %d start %d end
 	//%d",decode.block->cache.size,decode.block->page.start,decode.block->page.end);
 	return decode.block;
