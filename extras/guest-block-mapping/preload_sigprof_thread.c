@@ -65,7 +65,7 @@ static void *trampoline(void *arg){
 int pthread_create(pthread_t *thr,const pthread_attr_t *attr,void *(*fn)(void *),void *arg){
  static create_fn original=NULL;
  if(!original)original=(create_fn)dlsym(RTLD_NEXT,"pthread_create");
- if(!sample_fd||!fn)return original(thr,attr,fn,arg);
+ if(sample_fd<0 || !fn)return original(thr,attr,fn,arg);
  struct trampoline_args *a=malloc(sizeof(*a));
  if(!a)return original(thr,attr,fn,arg);
  *a=(struct trampoline_args){.fn=fn,.arg=arg};
