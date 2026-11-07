@@ -32,7 +32,7 @@ def read_zip(data: bytes, depth: int = 0):
             name = e.filename.replace("\\", "/")
             p = PurePosixPath(name)
             if (p.is_absolute() or any(t in ("", ".", "..") for t in p.parts)
-                    or (e.external_attr >> 16 & stat.S_IFMT) == stat.S_IFLNK):
+                    or stat.S_IFMT(e.external_attr >> 16) == stat.S_IFLNK):
                 raise ValueError(f"unsafe ZIP entry {name!r}")
             if e.is_dir():
                 continue
