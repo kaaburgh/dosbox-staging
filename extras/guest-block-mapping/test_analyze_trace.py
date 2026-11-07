@@ -69,6 +69,31 @@ class TraceTests(unittest.TestCase):
             ]))
             self.assertEqual(read_samples(path, tid=222, start_ns=110, end_ns=120), [(120, 0x120)])
 
+    def test_multi_epoch_cache_wrap_with_identical_native_addresses(self):
+        rows = []
+        samples = []
+        clock = 100
+        generations = 0
+        for epoch in range(3):
+            ids = []
+            for i in range(16):
+                generations += 1
+                host = 0x5000 + 0x100 * i
+                clock += 2
+                rows.append(ev('C', clock, generations, g=0x2000 + epoch * 0x200 + i,
+                               begin=host, end=host + 0x80))
+                samples.append((clock + 1, host + 0x10))
+                ids.append(generations)
+            for generation in ids:
+                clock += 2
+                rows.append(ev('D', clock, generation))
+        summary, ranked = classify(events_from_csv(self.write(''.join(rows))), samples)
+        self.assertEqual(summary['creates'], 48)
+        self.assertEqual(summary['invalidations'], 48)
+        self.assertEqual(summary['jit_samples'], 48)
+        self.assertEqual(summary['open_generations'], 0)
+        self.assertEqual(len(ranked), 48)
+
     def test_reject_truncated_invalidation_record(self):
         with self.assertRaisesRegex(ValueError, 'truncated or malformed'):
             events_from_csv(self.write('D,100,222,1,,,,,\n'))
