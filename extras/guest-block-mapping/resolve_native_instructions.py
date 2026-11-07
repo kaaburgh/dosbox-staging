@@ -18,11 +18,15 @@ import re
 import subprocess
 
 HEX_BYTES = re.compile(r'^\s*([0-9a-fA-F]+):\s+((?:[0-9a-fA-F]{2}\s+)+)(.*?)\s*$')
-NUMBER = re.compile(r'(?<![A-Za-z_])(?:0x[0-9a-fA-F]+|\d+)(?![A-Za-z_0-9])')
+NUMBER = re.compile(r'(?<![A-Za-z_0-9])(?:0x[0-9a-fA-F]+|\d+)(?![A-Za-z_0-9])')
 
 
 def classify_mnemonic(mnemonic: str) -> str:
     m = mnemonic.lower()
+    if m.startswith(('pushf', 'popf', 'lahf', 'sahf', 'set')):
+        return 'flags-or-state'
+    if m.startswith('f'):
+        return 'x87'
     if m.startswith('call'):
         return 'call-site'
     if m.startswith('j') or m.startswith('loop'):
