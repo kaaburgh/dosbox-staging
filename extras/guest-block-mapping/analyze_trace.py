@@ -17,6 +17,9 @@ from pathlib import Path
 import struct
 
 SAMPLE = struct.Struct('<QQII')
+COLUMNS = ('event', 'monotonic_ns', 'pid', 'generation', 'guest_cs',
+           'guest_eip', 'guest_linear_begin', 'guest_linear_end',
+           'host_begin', 'host_end')
 
 
 @dataclass(frozen=True)
@@ -44,9 +47,21 @@ def events_from_csv(path: Path) -> list[Event]:
     events: list[Event] = []
     known_ids: set[int] = set()
     pids: set[int] = set()
+    with path.open('rb') as binary:
+        binary.seek(0, 2)
+        if not binary.tell():
+            raise ValueError(f'{path}: empty trace')
+        binary.seek(-1, 2)
+        if binary.read(1) != b'\n':
+            raise ValueError(f'{path}: truncated final CSV record (no newline)')
     with path.open(newline='') as stream:
-        for line_no, row in enumerate(csv.DictReader(stream), 2):
+        reader = csv.DictReader(stream)
+        if tuple(reader.fieldnames or ()) != COLUMNS:
+            raise ValueError(f'{path}: unexpected CSV header; expected {COLUMNS}')
+        for line_no, row in enumerate(reader, 2):
             try:
+                if None in row or any(value is None or value == '' for value in row.values()):
+                    raise ValueError('truncated or malformed CSV record')
                 kind = row['event']
                 if kind not in ('C', 'D'):
                     raise ValueError(f'unsupported event {kind!r}')
