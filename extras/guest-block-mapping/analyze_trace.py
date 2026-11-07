@@ -43,6 +43,19 @@ class Event:
     block: Block | None = None
 
 
+def reject_recorder_io_errors(log_path: Path) -> None:
+    """Fail closed when a syntactically valid prefix is truncated by ENOSPC.
+
+    CSV formatting alone cannot detect a missing suffix ending at a complete
+    record. This checks the DOSBox stderr capture for recorder errors.
+    """
+    log = log_path.read_text(errors='replace')
+    if ('JIT block trace: recording stopped after write failure:' in log
+            or 'JIT block trace: cannot create ' in log):
+        raise ValueError(f'{log_path}: JIT recorder reported an I/O error; '
+                         'the lifecycle trace must not be trusted')
+
+
 def events_from_csv(path: Path) -> list[Event]:
     events: list[Event] = []
     known_ids: set[int] = set()
@@ -230,11 +243,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--trace', type=Path, required=True)
     parser.add_argument('--samples', type=Path, help='optional 24-byte SIGPROF sample stream')
+    parser.add_argument('--dosbox-log', type=Path, help='captured stderr; reject recorder I/O failures')
     parser.add_argument('--output', type=Path, help='write matched generation samples CSV')
     parser.add_argument('--output-guest', type=Path, help='write aggregated guest block samples CSV')
     parser.add_argument('--start-ns', type=int, help='beginning of demo (monotonic ns)')
     parser.add_argument('--end-ns', type=int, help='end of demo (monotonic ns)')
     args = parser.parse_args()
+    if args.dosbox_log:
+        reject_recorder_io_errors(args.dosbox_log)
     events = events_from_csv(args.trace)
     trace_pid = events[0].pid if events else None
     samples = read_samples(args.samples, tid=trace_pid,
