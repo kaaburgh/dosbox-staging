@@ -2744,6 +2744,10 @@ finish_block:
 	                     static_cast<uint32_t>(start),
 	                     static_cast<uint32_t>(decode.code),
 	                     guest_cs, guest_eip, native_bytes);
+	JitSelectedSnapshot::Capture(*decode.block,
+	                             static_cast<uint32_t>(start),
+	                             static_cast<uint32_t>(decode.code),
+	                             guest_cs, guest_eip, native_bytes);
 #endif
 	//	LOG_MSG("Created block size %d start %d end
 	//%d",decode.block->cache.size,decode.block->page.start,decode.block->page.end);
