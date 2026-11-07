@@ -42,6 +42,9 @@ jobs:
           test "$(wc -c < /tmp/SMC.COM)" -gt 50
           nasm -f bin crosspage_invalidations.asm -o /tmp/XPG.COM
           test "$(wc -c < /tmp/XPG.COM)" -gt 12000
+          nasm -f bin cache_wrap_stress.asm -o /tmp/WRAP.COM
+          test "$(wc -c < /tmp/WRAP.COM)" -gt 45000
+          test "$(wc -c < /tmp/WRAP.COM)" -lt 65280
       - name: Compile and exercise trace recorder I/O failure checks
         working-directory: extras/guest-block-mapping
         run: |
