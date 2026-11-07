@@ -141,6 +141,7 @@ static struct {
 #include "dyn_cache.h"
 #ifdef DOSBOX_JIT_BLOCK_TRACE
 #include "jit_block_trace.h"
+#include "jit_selected_snapshot.h"
 #endif
 
 static struct {
