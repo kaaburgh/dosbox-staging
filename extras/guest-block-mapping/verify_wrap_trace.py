@@ -52,21 +52,23 @@ def verify(trace: Path, markers: list[Path], expect_reuse: bool) -> dict:
     # unknown clear events, generation collisions and out-of-order timestamps.
     # Check that reused native starts were explicitly invalidated first.
     live = {}
+    by_generation = {}
+    seen_native_starts = set()
     recycled = 0
     for event in events:
         if event.event == 'D':
-            for start, generation in list(live.items()):
-                if generation == event.generation:
-                    del live[start]
-                    break
+            old_start = by_generation.pop(event.generation)
+            del live[old_start]
             continue
         block = event.block
         assert block is not None
-        if by_host[block.host_begin] >= 2:
+        if block.host_begin in seen_native_starts:
             recycled += 1
+        seen_native_starts.add(block.host_begin)
         if block.host_begin in live:
             raise ValueError('host JIT start reused before previous generation clear')
         live[block.host_begin] = block.generation
+        by_generation[block.generation] = block.host_begin
 
     return {**summary, 'guest_passes': len(markers),
             'guest_cs': f'0x{guest_cs:04x}',
