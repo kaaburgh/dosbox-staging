@@ -40,3 +40,11 @@ jobs:
           sudo apt-get install -y nasm
           nasm -f bin smc_invalidations.asm -o /tmp/SMC.COM
           test "$(wc -c < /tmp/SMC.COM)" -gt 50
+          nasm -f bin crosspage_invalidations.asm -o /tmp/XPG.COM
+          test "$(wc -c < /tmp/XPG.COM)" -gt 12000
+      - name: Compile and exercise trace recorder I/O failure checks
+        working-directory: extras/guest-block-mapping
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Werror \
+            test_jit_block_trace_io.cpp -o /tmp/test-jit-block-io
+          /tmp/test-jit-block-io
