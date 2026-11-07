@@ -2,7 +2,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from analyze_trace import events_from_csv, classify, read_samples, aggregate_by_guest, SAMPLE
+from analyze_trace import events_from_csv, classify, read_samples, aggregate_by_guest, reject_recorder_io_errors, SAMPLE
 
 HEADER = 'event,monotonic_ns,pid,generation,guest_cs,guest_eip,guest_linear_begin,guest_linear_end,host_begin,host_end\n'
 
@@ -93,6 +93,19 @@ class TraceTests(unittest.TestCase):
         self.assertEqual(summary['jit_samples'], 48)
         self.assertEqual(summary['open_generations'], 0)
         self.assertEqual(len(ranked), 48)
+
+    def test_recorder_io_failure_rejects_clean_csv_prefix(self):
+        with tempfile.TemporaryDirectory() as root:
+            log = Path(root) / 'dosbox.log'
+            log.write_text('JIT block trace: recording stopped after write failure: No space left on device\\n')
+            with self.assertRaisesRegex(ValueError, 'recorder reported an I/O error'):
+                reject_recorder_io_errors(log)
+
+    def test_clean_recorder_log_is_accepted(self):
+        with tempfile.TemporaryDirectory() as root:
+            log = Path(root) / 'dosbox.log'
+            log.write_text('DOSBox exited normally\\n')
+            reject_recorder_io_errors(log)
 
     def test_reject_truncated_invalidation_record(self):
         with self.assertRaisesRegex(ValueError, 'truncated or malformed'):
