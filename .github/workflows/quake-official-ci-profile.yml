@@ -22,8 +22,6 @@ jobs:
       BENCHMARK_URL: https://github.com/user-attachments/files/21488506/quake-benchmark.zip
       RUNROOT: /tmp/quake-research
     steps:
-      - uses: actions/checkout@v4
-
       - name: Install known Debian 13 build and headless runtime dependencies
         shell: bash
         run: |
@@ -35,10 +33,12 @@ jobs:
             libspeexdsp-dev libsdl3-dev libsdl3-image-dev libasio-dev zlib1g-dev \
             libgl-dev nasm binutils xvfb x11-utils xauth
           mkdir -p "$RUNROOT" "$RUNROOT/public" "$RUNROOT/raw"
-          git rev-parse HEAD > "$RUNROOT/public/FORK_SHA"
+          printf "%s\\n" "$GITHUB_SHA" > "$RUNROOT/public/FORK_SHA"
           cat /etc/os-release > "$RUNROOT/public/OS_RELEASE"
           (g++ --version; cmake --version; ninja --version; objdump --version) \
             > "$RUNROOT/public/TOOLCHAIN"
+
+      - uses: actions/checkout@v4
 
       - name: Download upstream wiki Quake benchmark and verify exact Quake 1.06 executable
         shell: bash
