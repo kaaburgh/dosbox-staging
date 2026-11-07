@@ -28,6 +28,11 @@
 #include <processthreadsapi.h>
 #endif
 
+#if defined(DOSBOX_JIT_BLOCK_TRACE) && C_DYNAMIC_X86
+class CacheBlock;
+void JitBlockTrace_Invalidate(CacheBlock& block);
+#endif
+
 class CodePageHandler;
 
 // basic cache block representation
@@ -99,6 +104,11 @@ public:
 	} link[2] = {};                // maximum two links (conditional jumps)
 
 	CacheBlock* crossblock = {};
+
+#if defined(DOSBOX_JIT_BLOCK_TRACE) && C_DYNAMIC_X86
+	// A cache address can be used by several generations of guest blocks.
+	uint64_t jit_trace_id = 0;
+#endif
 };
 
 static_assert(std::is_standard_layout_v<CacheBlock::Page>, "standard-layout is required for offsetof");
@@ -643,6 +653,9 @@ inline void CacheBlock::Cache::AddDwordToWriteMaskAt(const size_t page_index)
 
 void CacheBlock::Clear()
 {
+#if defined(DOSBOX_JIT_BLOCK_TRACE) && C_DYNAMIC_X86
+	JitBlockTrace_Invalidate(*this);
+#endif
 	Bitu ind;
 	// check if this is not a cross page block
 	if (hash.index) for (ind=0;ind<2;ind++) {
