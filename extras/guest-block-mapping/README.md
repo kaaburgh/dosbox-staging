@@ -84,6 +84,19 @@ lifecycles, and rejects overlapping simultaneously-live native ranges.
   [original research PR](https://github.com/kaaburgh/configs/pull/4).
 - No game binary or proprietary PAK assets are checked in here.
 
+## Self-modifying-code regression probe
+
+`smc_invalidations.asm` is a small real-mode DOS COM program that alternates
+the first instruction of a callable code block between `NOP` and `INC AX`
+96 times. It then writes `SMC.OK` containing `OK\r\n`.
+
+Assemble it using `nasm -f bin smc_invalidations.asm -o SMC.COM`, mount the
+directory in an instrumented DOSBox (`core=dynamic`), and execute `SMC.COM`.
+The trace should show creation and invalidation of native JIT code. Confirm
+the marker file exists before assessing the lifecycle trace. This synthetic
+probe checks one self-modification path; it is not a proof for every cache
+reset/cross-page scenario.
+
 ## Open correctness checks
 
 1. Verify both normal invalidations and code-cache wrap-around (reuse of
