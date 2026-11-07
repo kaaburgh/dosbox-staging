@@ -2,6 +2,8 @@
 """Run original DOS Quake 1.06 with traced DOSBox and an optional SIGPROF sampler.
 
 All generated files stay under --out; game binaries are not exported.
+For selected native RIP analysis, provide --profiler, --snapshot-eips, and
+--runtime-cwd (DOSBox Staging 0.84 resources/mapping parent).
 """
 import argparse
 import json
@@ -39,11 +41,28 @@ def main():
     p.add_argument('--game', type=Path, required=True)
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--profiler', type=Path)
+    p.add_argument('--profile-period-us', type=int, default=5000,
+                   help='per-thread CPU-time sample period, 1000..1000000 microseconds')
     p.add_argument('--no-trace', action='store_true', help='control run without JIT lifecycle records')
     p.add_argument('--sdk-lib-dir', type=Path)
     p.add_argument('--renderer', choices=['texture', 'opengl'], default='texture')
     p.add_argument('--timeout', type=int, default=100)
+    p.add_argument('--snapshot-eips', help='explicit comma-separated guest EIPs (requires JIT snapshot build)')
+    p.add_argument('--snapshot-max', type=int, default=16)
+    p.add_argument('--runtime-cwd', type=Path,
+                   help='DOSBox source/runtime directory with resources/mapping (needed for 0.84)')
     args = p.parse_args()
+    if args.snapshot_eips and args.no_trace:
+        p.error('selected snapshots require an enabled JIT lifecycle trace')
+    if args.snapshot_eips and not args.profiler:
+        p.error('selected RIP profiles require --profiler')
+    if not 1000 <= args.profile_period_us <= 1000000:
+        p.error('--profile-period-us must be in 1000..1000000')
+    if not 1 <= args.snapshot_max <= 256:
+        p.error('--snapshot-max must be in 1..256')
+    cwd = args.runtime_cwd.resolve() if args.runtime_cwd else None
+    if cwd and not (cwd / 'resources' / 'mapping').is_dir():
+        p.error('--runtime-cwd must contain resources/mapping')
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     game = out / 'game'
@@ -66,8 +85,14 @@ def main():
         env['LD_LIBRARY_PATH'] = str(args.sdk_lib_dir.resolve()) + ':' + env.get('LD_LIBRARY_PATH', '')
     if args.profiler:
         env.update(DOSBOX_PROFILE_OUTPUT=str(out / 'samples.bin'),
-                   DOSBOX_PROFILE_PERIOD_US='5000',
+                   DOSBOX_PROFILE_PERIOD_US=str(args.profile_period_us),
                    LD_PRELOAD=str(args.profiler.resolve()))
+    if args.snapshot_eips:
+        snapshot_dir = out / 'snapshots'
+        snapshot_dir.mkdir(mode=0o700, exist_ok=False)
+        env.update(DOSBOX_JIT_SNAPSHOT_DIR=str(snapshot_dir),
+                   DOSBOX_JIT_SNAPSHOT_EIPS=args.snapshot_eips,
+                   DOSBOX_JIT_SNAPSHOT_MAX=str(args.snapshot_max))
     with (out / 'xvfb.log').open('w') as f:
         xvfb = subprocess.Popen(['Xvfb', ':159', '-screen', '0', '1280x720x24',
                                  '-nolisten', 'tcp'],
@@ -93,7 +118,8 @@ def main():
         res = None
         with (out / 'dosbox.log').open('w') as f:
             proc = subprocess.Popen(command, env=env, stdout=f,
-                                    stderr=subprocess.STDOUT, start_new_session=True)
+                                    stderr=subprocess.STDOUT, start_new_session=True,
+                                    cwd=cwd)
             try:
                 while time.monotonic() - started < args.timeout:
                     qlog = game / 'ID1' / 'QCONSOLE.LOG'
@@ -118,7 +144,9 @@ def main():
                   'demo_start_observed_ns': first_demo, 'demo_end_observed_ns': end_ns,
                   'wall_sec': round(time.monotonic() - started, 3),
                   'renderer': args.renderer, 'profiler': bool(args.profiler),
-                  'trace_enabled': not args.no_trace}
+                  'trace_enabled': not args.no_trace,
+                  'selected_snapshots': bool(args.snapshot_eips),
+                  'profile_period_us': args.profile_period_us if args.profiler else None}
         (out / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
         print(json.dumps(result, indent=2), flush=True)
         return 0 if res else 1

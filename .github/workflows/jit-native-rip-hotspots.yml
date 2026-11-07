@@ -1,0 +1,34 @@
+name: Quake native RIP hotspot analysis
+
+on:
+  push:
+    branches: [experiments/quake-native-rip-hotspots]
+  pull_request:
+    paths:
+      - 'extras/guest-block-mapping/analyze_native_rips.py'
+      - 'extras/guest-block-mapping/test_analyze_native_rips.py'
+      - 'extras/guest-block-mapping/run_guest_trace.py'
+      - 'extras/guest-block-mapping/analyze_trace.py'
+      - '.github/workflows/jit-native-rip-hotspots.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  native-rip-synthetic:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check profiler tools compile as Python
+        run: |
+          python3 -m py_compile \
+            extras/guest-block-mapping/analyze_native_rips.py \
+            extras/guest-block-mapping/run_guest_trace.py
+      - name: Test native RIP attribution on synthetic snapshots
+        run: |
+          python3 -m unittest discover -s extras/guest-block-mapping \
+            -p 'test_analyze_native_rips.py' -v
+      - name: Preserve lifecycle trace analysis regressions
+        run: |
+          python3 -m unittest discover -s extras/guest-block-mapping \
+            -p 'test_analyze_trace.py' -v
