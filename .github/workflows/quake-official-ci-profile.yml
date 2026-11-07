@@ -105,7 +105,7 @@ jobs:
         run: |
           set -euo pipefail
           for period in 4700 5300; do
-            python3 extras/guest-block-mapping/run_guest_trace.py \
+            if ! python3 extras/guest-block-mapping/run_guest_trace.py \
               --dosbox "$RUNROOT/build/dosbox" \
               --game "$RUNROOT/game" \
               --out "$RUNROOT/raw/run-$period" \
@@ -113,7 +113,23 @@ jobs:
               --profiler "$RUNROOT/preload_sigprof_thread.so" \
               --profile-period-us "$period" \
               --snapshot-eips 0x10d3b,0x11216,0x112cc,0x11343,0x1143f,0x3e233,0x3e29a,0x3e3ef,0x3e455 \
-              --snapshot-max 16 --timeout 180
+              --snapshot-max 16 --timeout 105; then
+              echo "Quake timedemo did not complete. Bounded DOSBox diagnostics:"
+              if [ -f "$RUNROOT/raw/run-$period/dosbox.log" ]; then
+                tail -n 100 "$RUNROOT/raw/run-$period/dosbox.log" | cut -c1-350
+              fi
+              echo "Mounted game layout:"
+              find "$RUNROOT/raw/run-$period/game" -maxdepth 3 -type f \
+                -printf '%P %s bytes\n' | head -n 40
+              for console in "$RUNROOT/raw/run-$period/game/ID1/QCONSOLE.LOG" \
+                             "$RUNROOT/raw/run-$period/game/id1/qconsole.log"; do
+                if [ -f "$console" ]; then
+                  echo "Quake console tail:"
+                  tail -n 30 "$console" | cut -c1-350
+                fi
+              done
+              exit 1
+            fi
             python3 - "$RUNROOT/raw/run-$period" <<'PY'
           from pathlib import Path
           import json
