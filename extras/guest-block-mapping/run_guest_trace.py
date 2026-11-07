@@ -41,6 +41,8 @@ def main():
     p.add_argument('--game', type=Path, required=True)
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--profiler', type=Path)
+    p.add_argument('--profile-period-us', type=int, default=5000,
+                   help='per-thread CPU-time sample period, 1000..1000000 microseconds')
     p.add_argument('--no-trace', action='store_true', help='control run without JIT lifecycle records')
     p.add_argument('--sdk-lib-dir', type=Path)
     p.add_argument('--renderer', choices=['texture', 'opengl'], default='texture')
@@ -54,6 +56,8 @@ def main():
         p.error('selected snapshots require an enabled JIT lifecycle trace')
     if args.snapshot_eips and not args.profiler:
         p.error('selected RIP profiles require --profiler')
+    if not 1000 <= args.profile_period_us <= 1000000:
+        p.error('--profile-period-us must be in 1000..1000000')
     if not 1 <= args.snapshot_max <= 256:
         p.error('--snapshot-max must be in 1..256')
     cwd = args.runtime_cwd.resolve() if args.runtime_cwd else None
@@ -81,7 +85,7 @@ def main():
         env['LD_LIBRARY_PATH'] = str(args.sdk_lib_dir.resolve()) + ':' + env.get('LD_LIBRARY_PATH', '')
     if args.profiler:
         env.update(DOSBOX_PROFILE_OUTPUT=str(out / 'samples.bin'),
-                   DOSBOX_PROFILE_PERIOD_US='5000',
+                   DOSBOX_PROFILE_PERIOD_US=str(args.profile_period_us),
                    LD_PRELOAD=str(args.profiler.resolve()))
     if args.snapshot_eips:
         snapshot_dir = out / 'snapshots'
@@ -141,7 +145,8 @@ def main():
                   'wall_sec': round(time.monotonic() - started, 3),
                   'renderer': args.renderer, 'profiler': bool(args.profiler),
                   'trace_enabled': not args.no_trace,
-                  'selected_snapshots': bool(args.snapshot_eips)}
+                  'selected_snapshots': bool(args.snapshot_eips),
+                  'profile_period_us': args.profile_period_us if args.profiler else None}
         (out / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
         print(json.dumps(result, indent=2), flush=True)
         return 0 if res else 1
