@@ -69,6 +69,18 @@ class TraceTests(unittest.TestCase):
             ]))
             self.assertEqual(read_samples(path, tid=222, start_ns=110, end_ns=120), [(120, 0x120)])
 
+    def test_reject_truncated_invalidation_record(self):
+        with self.assertRaisesRegex(ValueError, 'truncated or malformed'):
+            events_from_csv(self.write('D,100,222,1,,,,,\n'))
+
+    def test_reject_missing_final_newline(self):
+        with self.assertRaisesRegex(ValueError, 'no newline'):
+            events_from_csv(self.write(ev('C', 100, 1).rstrip('\n')))
+
+    def test_reject_unexpected_columns(self):
+        with self.assertRaisesRegex(ValueError, 'truncated or malformed'):
+            events_from_csv(self.write(ev('C', 100, 1).replace('C,', 'C,extra,', 1)))
+
     def test_sample_binary_layout_and_incomplete_record(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / 'samples.bin'
