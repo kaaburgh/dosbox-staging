@@ -47,6 +47,12 @@ must have a unique new output directory:
       --snapshot-max 16 \
       --out /private/new-unique-run
 
+Use --profile-period-us to vary the CPU-time sampling interval across
+repeated runs, for example 4700, 5000 and 5300 microseconds. Fixed-period
+sampling can become phase-locked to repeated raster loops; independent
+runs and periods help identify such artifacts. Period changes must be
+recorded alongside every run and must not be interpreted as speedups.
+
 The runner writes result.json with demo_start_observed_ns and
 demo_end_observed_ns (CLOCK_MONOTONIC). Use these observed bounds in
 the analysis; their precision is limited by log polling:
