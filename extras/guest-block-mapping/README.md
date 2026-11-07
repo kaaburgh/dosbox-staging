@@ -59,6 +59,7 @@ cc -O2 -shared -fPIC -o preload_sigprof_thread.so preload_sigprof_thread.c -ldl 
 
 python3 analyze_trace.py \
   --trace /path/to/new-jit-events.csv \
+  --dosbox-log /path/to/captured-dosbox.log \
   --samples /path/to/samples.bin \
   --start-ns YOUR_DEMO_START_MONOTONIC_NS \
   --end-ns YOUR_DEMO_END_MONOTONIC_NS \
@@ -129,18 +130,37 @@ an optimization or an upstream change. Validate after local execution:
 Do not claim the real wraparound path passed unless these four
 conditions are actually observed.
 
-## Open correctness checks
+## Verified correctness (local execution)
 
-1. Verify both normal invalidations and code-cache wrap-around (reuse of
-   host addresses) lead to distinct generation IDs, never overlapping
-   live regions.
-2. Verify self-modifying and cross-page guest code produce valid lifecycle
-   events and do not violate JIT interval accounting.
-3. Measure the steady-state overhead using paired A/B runs on the same
-   host, with the same renderer and game configuration. The prior
-   shared Linux container exhibited large external load variability.
-4. The tracer maps native JIT RIPs only. Time inside C++ helper functions
-   cannot yet be assigned to one guest instruction.
+- `SMC.COM`: self-modifying arithmetic and JIT invalidation, with guest
+  checksum validated by DOS code.
+- `XPG.COM`: instruction spanning a physical 4 KiB page boundary was changed
+  and executed correctly; invalidated and regenerated crossing block.
+- `WRAP.COM`: 16,000 independently known x86 guest block entries, all present
+  in the native-to-guest JIT trace; three local program executions passed in
+  a temporary **1 MiB JIT-cache** with **five actual wraparounds**, **8,535**
+  reused native address starts, **48,062 CREATE** and **39,968 INVALIDATE**
+  events. No simultaneously-live native ranges overlapped. The 8 MiB
+  negative control correctly failed `--require-reuse`.
+- Recorder `ENOSPC` test: recording fails closed and reports an error. The
+  analyzer rejects malformed rows and, with `--dosbox-log`, also rejects
+  a recorder error that ends exactly on a valid CSV record boundary.
+- **15** Python lifecycle/analyzer unit tests passed locally.
+
+Detailed proof, executable hashes and limitations:
+`evidence/p0-local-cache-wrap-2026-11-07.md`.
+
+## Still unverified
+
+1. Other x86 CPU modes, exception paths, FPU helpers, paging layouts and
+   broader non-Quake game workloads; current probes are deliberately narrow.
+2. Threaded or externally interrupted recorder shutdown cannot always
+   provide a trustworthy "complete trace" marker. Preserve DOSBox stderr
+   logs and pass `--dosbox-log` to the analyzer.
+3. Steady-state performance overhead is inconclusive on a shared host and
+   should be investigated on a stable dedicated machine.
+4. Attribution of native C++ helpers to individual guest instructions is a
+   separate follow-up; block-level mapping does not claim to solve it.
 
 Keep the implementation restricted to diagnostics; generalized and
 upstreamable performance improvements should be separately tested
