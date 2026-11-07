@@ -73,12 +73,22 @@ def main():
     (args.game_dir / "ID1").mkdir()
     (args.game_dir / "QUAKE.EXE").write_bytes(exe)
     (args.game_dir / "ID1" / "PAK0.PAK").write_bytes(pak)
+    # Some historical DOS executables require a companion DPMI extender.
+    # Retain only these optional launch helpers from the verified source root.
+    helpers = []
+    for helper in ("CWSDPMI.EXE", "DOS4GW.EXE", "GO32.EXE"):
+        key = root + helper.casefold()
+        if key in files:
+            data = files[key][1]
+            (args.game_dir / helper).write_bytes(data)
+            helpers.append({"name": helper, "sha256": sha256(data).hexdigest()})
     args.manifest.write_text(json.dumps({
         "benchmark_archive_sha256": sha256(data).hexdigest(),
         "quake_exe_sha256": sha256(exe).hexdigest(),
         "pak0_sha256": sha256(pak).hexdigest(),
         "quake_exe_bytes": len(exe), "pak0_bytes": len(pak),
         "package_root": root,
+        "optional_dos_extenders": helpers,
         "note": "Do not upload Quake executable or PAK, only hashes."
     }, indent=2) + "\n")
     print(f"Verified Quake 1.06 EXE SHA-256: {sha256(exe).hexdigest()}")
