@@ -1,0 +1,201 @@
+name: Research Quake 1.06 native JIT RIP profile
+
+on:
+  push:
+    branches: [experiments/quake-official-benchmark-profile]
+    paths:
+      - '.github/workflows/quake-official-ci-profile.yml'
+      - 'extras/guest-block-mapping/prepare_official_quake.py'
+      - 'extras/guest-block-mapping/official_quake_profile_report.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-profile:
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    timeout-minutes: 60
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      BENCHMARK_URL: https://github.com/user-attachments/files/21488506/quake-benchmark.zip
+      RUNROOT: /tmp/quake-research
+    steps:
+      - name: Install known Debian 13 build and headless runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl git cmake ninja-build g++ gcc pkg-config python3 \
+            libasound2-dev libfluidsynth-dev libiir-dev libpng-dev libopusfile-dev \
+            libspeexdsp-dev libsdl3-dev libsdl3-image-dev libasio-dev zlib1g-dev \
+            libgl-dev nasm binutils xvfb x11-utils xauth
+          mkdir -p "$RUNROOT" "$RUNROOT/public" "$RUNROOT/raw"
+          printf "%s\\n" "$GITHUB_SHA" > "$RUNROOT/public/FORK_SHA"
+          cat /etc/os-release > "$RUNROOT/public/OS_RELEASE"
+          (g++ --version; cmake --version; ninja --version; objdump --version) \
+            > "$RUNROOT/public/TOOLCHAIN"
+
+      - uses: actions/checkout@v4
+
+      - name: Download upstream wiki Quake benchmark and verify exact Quake 1.06 executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 4 --max-time 180 \
+            "$BENCHMARK_URL" -o "$RUNROOT/quake-benchmark.zip"
+          python3 extras/guest-block-mapping/prepare_official_quake.py \
+            --archive "$RUNROOT/quake-benchmark.zip" \
+            --game-dir "$RUNROOT/game" \
+            --manifest "$RUNROOT/public/QUAKE_PROVENANCE.json"
+
+      - name: Apply two proven Debian 13 SDK compatibility shims (not CPU/JIT)
+        shell: bash
+        run: |
+          set -euo pipefail
+          multiarch="$(gcc -dumpmachine)"
+          if [ ! -e "/usr/lib/$multiarch/libiir_static.a" ]; then
+            ln -s libiir.so "/usr/lib/$multiarch/libiir_static.a"
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          edits = {
+            'src/gui/mapper.cpp': (
+              'SDL_SetDefaultTextureScaleMode(mapper.renderer, SDL_SCALEMODE_NEAREST);',
+              '/* SDK shim: only unused keyboard mapper. */'),
+            'src/midi/fluidsynth.cpp': (
+              'fluid_synth_set_portamento_time_mode(fluid_synth.get(),\n\t                                     FLUID_PORTAMENTO_TIME_MODE_XG_GS);',
+              '/* SDK shim: MIDI disabled for Quake. */'),
+          }
+          for path, (old, new) in edits.items():
+              p = Path(path)
+              s = p.read_text()
+              if s.count(old) != 1:
+                  raise RuntimeError(f'prevalidated SDK shim anchor changed in {path}: {s.count(old)}')
+              p.write_text(s.replace(old, new))
+          PY
+          printf '%s\n' 'Debian trixie SDL mapping + FluidSynth compatibility shims; no CPU/JIT changes' \
+            > "$RUNROOT/public/LOCAL_SDK_SHIMS"
+
+      - name: Build fork DOSBox with guest-block tracing and selected JIT snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S . -B "$RUNROOT/build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DUSE_SYSTEM_LIBS=ON \
+            -DOPT_MT32EMU=OFF -DOPT_TESTS=OFF -DOPT_DOCUMENTATION=OFF \
+            -DOPT_JIT_BLOCK_TRACE=ON
+          cmake --build "$RUNROOT/build" -j2
+          test -x "$RUNROOT/build/dosbox"
+          sha256sum "$RUNROOT/build/dosbox" > "$RUNROOT/public/BUILD_SHA256"
+          cc -O2 -shared -fPIC \
+            extras/guest-block-mapping/preload_sigprof_thread.c \
+            -o "$RUNROOT/preload_sigprof_thread.so" -ldl -pthread
+          sha256sum "$RUNROOT/preload_sigprof_thread.so" \
+            > "$RUNROOT/public/PROFILER_SHA256"
+          python3 -m unittest discover -s extras/guest-block-mapping \
+            -p 'test_resolve_native_instructions.py' -v
+          python3 -m unittest discover -s extras/guest-block-mapping \
+            -p 'test_analyze_native_rips.py' -v
+
+      - name: Capture real Quake 1.06 demo1 with two SIGPROF sample periods
+        shell: bash
+        run: |
+          set -euo pipefail
+          for period in 4700 5300; do
+            if ! python3 extras/guest-block-mapping/run_guest_trace.py \
+              --dosbox "$RUNROOT/build/dosbox" \
+              --game "$RUNROOT/game" \
+              --out "$RUNROOT/raw/run-$period" \
+              --runtime-cwd "$GITHUB_WORKSPACE" \
+              --profiler "$RUNROOT/preload_sigprof_thread.so" \
+              --profile-period-us "$period" \
+              --snapshot-eips 0x10d3b,0x11216,0x112cc,0x11343,0x1143f,0x3e233,0x3e29a,0x3e3ef,0x3e455 \
+              --snapshot-max 16 --timeout 105; then
+              echo "Quake timedemo did not complete. Bounded DOSBox diagnostics:"
+              if [ -f "$RUNROOT/raw/run-$period/dosbox.log" ]; then
+                tail -n 100 "$RUNROOT/raw/run-$period/dosbox.log" | cut -c1-350
+              fi
+              echo "Mounted game layout:"
+              find "$RUNROOT/raw/run-$period/game" -maxdepth 3 -type f \
+                -printf '%P %s bytes\n' | head -n 40
+              for console in "$RUNROOT/raw/run-$period/game/ID1/QCONSOLE.LOG" \
+                             "$RUNROOT/raw/run-$period/game/id1/qconsole.log"; do
+                if [ -f "$console" ]; then
+                  echo "Quake console tail:"
+                  tail -n 30 "$console" | cut -c1-350
+                fi
+              done
+              exit 1
+            fi
+            python3 - "$RUNROOT/raw/run-$period" <<'PY'
+          from pathlib import Path
+          import json
+          import subprocess
+          import sys
+          folder = Path(sys.argv[1])
+          run = json.loads((folder / 'result.json').read_text())
+          assert run['result'] is not None and run['result']['frames'] == 969, run
+          start, end = run['demo_start_observed_ns'], run['demo_end_observed_ns']
+          assert isinstance(start, int) and isinstance(end, int) and start < end
+          command = [
+              sys.executable, 'extras/guest-block-mapping/analyze_native_rips.py',
+              '--trace', str(folder / 'jit-blocks.csv'),
+              '--samples', str(folder / 'samples.bin'),
+              '--snapshots', str(folder / 'snapshots'),
+              '--dosbox-log', str(folder / 'dosbox.log'),
+              '--start-ns', str(start), '--end-ns', str(end),
+              '--out', str(folder / 'derived'),
+          ]
+          subprocess.run(command, check=True)
+          subprocess.run([
+              sys.executable, 'extras/guest-block-mapping/resolve_native_instructions.py',
+              '--summary', str(folder / 'derived/summary.json'),
+              '--rips', str(folder / 'derived/native-rips.csv'),
+              '--snapshots', str(folder / 'snapshots'),
+              '--out', str(folder / 'instructions'),
+          ], check=True)
+          PY
+          done
+          python3 extras/guest-block-mapping/official_quake_profile_report.py \
+            --root "$RUNROOT/raw" --out "$RUNROOT/public/QUAKE_PROFILE_REPORT.json"
+          cat "$RUNROOT/public/QUAKE_PROFILE_REPORT.json"
+
+      - name: Preserve only derived, non-game evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "$RUNROOT/raw" ]; then
+            for run in "$RUNROOT/raw"/run-*; do
+              if [ -f "$run/result.json" ]; then
+                mkdir -p "$RUNROOT/public/$(basename "$run")"
+                cp "$run/result.json" "$RUNROOT/public/$(basename "$run")/"
+              fi
+              if [ -f "$run/derived/summary.json" ]; then
+                cp "$run/derived/summary.json" "$RUNROOT/public/$(basename "$run")/native-summary.json"
+              fi
+              if [ -f "$run/derived/native-rips.csv" ]; then
+                cp "$run/derived/native-rips.csv" "$RUNROOT/public/$(basename "$run")/"
+              fi
+              if [ -f "$run/instructions/summary.json" ]; then
+                cp "$run/instructions/summary.json" "$RUNROOT/public/$(basename "$run")/instruction-summary.json"
+              fi
+              if [ -f "$run/instructions/sampled-instructions.csv" ]; then
+                cp "$run/instructions/sampled-instructions.csv" "$RUNROOT/public/$(basename "$run")/"
+              fi
+              if [ -f "$run/dosbox.log" ]; then
+                grep -E 'JIT snapshot:|JIT block trace:|THREAD_SIGPROF_PROFILE_(STARTED|ENDED)' \
+                  "$run/dosbox.log" | sed -E 's@output=[^ ]+@output=[private]@g' \
+                  > "$RUNROOT/public/$(basename "$run")/diagnostic-errors.txt" || true
+              fi
+            done
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quake106-derived-native-profile-no-game-bytes
+          path: /tmp/quake-research/public/
+          retention-days: 7
