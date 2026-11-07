@@ -329,6 +329,10 @@ else()
   message(FATAL_ERROR "Unknown processor ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
+if (OPT_JIT_BLOCK_TRACE AND NOT C_DYNAMIC_X86)
+  message(FATAL_ERROR "OPT_JIT_BLOCK_TRACE requires the x86-64 dynamic CPU core")
+endif()
+
 check_include_file("libgen.h"     HAVE_LIBGEN_H)
 check_include_file("netinet/in.h" HAVE_NETINET_IN_H)
 check_include_file("stdlib.h"     HAVE_STDLIB_H)
