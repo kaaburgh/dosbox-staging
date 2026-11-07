@@ -63,6 +63,24 @@ class InstructionSampleTests(unittest.TestCase):
         self.assertIn('IMM', ins[0]['operand_shape'])
         self.assertNotIn('0x12345678', ins[0]['operand_shape'])
 
+    def test_redaction_preserves_x86_register_numbers(self):
+        f = self.root / 'numbered-registers.bin'
+        # mov r12,r13; mov r14d,r15d; ret
+        f.write_bytes(bytes.fromhex('4d 89 ec 45 89 fe c3'))
+        ins = load_disassembly(f)
+        shapes = ' '.join(row['operand_shape'] for row in ins.values())
+        self.assertIn('r12', shapes)
+        self.assertIn('r13', shapes)
+        self.assertIn('r14d', shapes)
+        self.assertIn('r15d', shapes)
+        self.assertNotIn('IMM', shapes)
+
+    def test_flags_and_x87_stay_separate_from_memory_mov(self):
+        self.assertEqual(classify_mnemonic('pushf'), 'flags-or-state')
+        self.assertEqual(classify_mnemonic('popfq'), 'flags-or-state')
+        self.assertEqual(classify_mnemonic('fxch'), 'x87')
+        self.assertEqual(classify_mnemonic('lea'), 'move-or-address')
+
     def test_family_labels_do_not_claim_tlb_or_helper_executions(self):
         self.assertEqual(classify_mnemonic('call'), 'call-site')
         self.assertEqual(classify_mnemonic('jmp'), 'branch')
