@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
+#include <cstring>
 #include <fcntl.h>
 #include <time.h>
 #include <unistd.h>
@@ -29,6 +30,29 @@ static uint64_t NowNs()
     return static_cast<uint64_t>(ts.tv_sec) * 1000000000ULL + ts.tv_nsec;
 }
 
+// A truncated record is worse than no trace: stop recording on I/O error.
+// Writes normally finish in one syscall, but handle EINTR and partial writes.
+static bool WriteAll(const char* data, size_t length)
+{
+    while (length) {
+        const auto written = write(fd, data, length);
+        if (written < 0 && errno == EINTR)
+            continue;
+        if (written <= 0) {
+            const int error = written == 0 ? EIO : errno;
+            std::fprintf(stderr,
+                         "JIT block trace: recording stopped after write failure: %s\n",
+                         std::strerror(error));
+            (void)close(fd);
+            fd = -1;
+            return false;
+        }
+        data += written;
+        length -= static_cast<size_t>(written);
+    }
+    return true;
+}
+
 static void Initialize()
 {
     if (fd != -2)
@@ -37,19 +61,17 @@ static void Initialize()
     const char* path = std::getenv("DOSBOX_JIT_BLOCK_TRACE");
     if (!path || !*path)
         return;
-    // Exclusive create avoids accidentally mixing traces from different PIDs
-    // or runs, and guards against silent truncation of evidence.
+    // O_EXCL prevents accidentally overwriting or mixing traces.
     const int opened = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
     if (opened < 0) {
-        std::fprintf(stderr, "JIT block trace: cannot create %s (errno=%d)\n",
-                     path, errno);
+        std::fprintf(stderr, "JIT block trace: cannot create %s: %s\n",
+                     path, std::strerror(errno));
         return;
     }
     fd = opened;
-    const char header[] = "event,monotonic_ns,pid,generation,guest_cs,guest_eip,guest_linear_begin,guest_linear_end,host_begin,host_end\n";
-    // A single write per record. Do not buffer: DOSBox is intentionally killed
-    // after Quake timedemo result, so atexit/stdio flushing is unreliable.
-    (void)write(fd, header, sizeof(header) - 1);
+    static constexpr char header[] =
+            "event,monotonic_ns,pid,generation,guest_cs,guest_eip,guest_linear_begin,guest_linear_end,host_begin,host_end\n";
+    (void)WriteAll(header, sizeof(header) - 1);
 }
 
 static void Emit(const char event, const uint64_t generation,
@@ -74,7 +96,7 @@ static void Emit(const char event, const uint64_t generation,
         static_cast<unsigned long long>(host_begin),
         static_cast<unsigned long long>(host_end));
     if (length > 0 && static_cast<size_t>(length) < sizeof(line))
-        (void)write(fd, line, static_cast<size_t>(length));
+        (void)WriteAll(line, static_cast<size_t>(length));
 }
 
 } // namespace JitBlockTrace
