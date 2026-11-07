@@ -33,3 +33,10 @@ jobs:
             -o /tmp/preload_sigprof_thread.so preload_sigprof_thread.c \
             -ldl -pthread
           file /tmp/preload_sigprof_thread.so
+      - name: Assemble DOS self-modifying-code probe
+        working-directory: extras/guest-block-mapping
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y nasm
+          nasm -f bin smc_invalidations.asm -o /tmp/SMC.COM
+          test "$(wc -c < /tmp/SMC.COM)" -gt 50
