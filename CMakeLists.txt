@@ -152,6 +152,16 @@ if (APPLE)
   endif()
 endif()
 
+# Diagnostic only: record x86 JIT native-address to guest CS:EIP mappings.
+# Disabled by default; currently implemented only for Linux x86 dynamic core.
+option(OPT_JIT_BLOCK_TRACE "Record guest/native JIT block lifecycles for profiling" OFF)
+if (OPT_JIT_BLOCK_TRACE)
+  if (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    message(FATAL_ERROR "OPT_JIT_BLOCK_TRACE currently supports Linux only")
+  endif()
+  add_compile_definitions(DOSBOX_JIT_BLOCK_TRACE=1)
+endif()
+
 option(OPT_DEBUGGER "Enable debugger" OFF)
 option(OPT_HEAVY_DEBUGGER "Enable heavy debugger" OFF)
 if (OPT_HEAVY_DEBUGGER)
@@ -317,6 +327,10 @@ elseif (CMAKE_SYSTEM_PROCESSOR  STREQUAL "arm64"   OR
 
 else()
   message(FATAL_ERROR "Unknown processor ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
+if (OPT_JIT_BLOCK_TRACE AND NOT C_DYNAMIC_X86)
+  message(FATAL_ERROR "OPT_JIT_BLOCK_TRACE requires the x86-64 dynamic CPU core")
 endif()
 
 check_include_file("libgen.h"     HAVE_LIBGEN_H)

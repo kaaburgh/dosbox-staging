@@ -139,6 +139,9 @@ static struct {
 
 #define dyn_return(a,b) gen_return(a)
 #include "dyn_cache.h"
+#ifdef DOSBOX_JIT_BLOCK_TRACE
+#include "jit_block_trace.h"
+#endif
 
 static struct {
 	Bitu callback;

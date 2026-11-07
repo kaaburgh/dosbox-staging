@@ -1,0 +1,53 @@
+name: Guest block mapping diagnostics
+
+on:
+  push:
+    branches:
+      - experiments/quake-guest-block-mapping
+  pull_request:
+    paths:
+      - 'src/cpu/jit_block_trace.h'
+      - 'src/cpu/dyn_cache.h'
+      - 'src/cpu/core_dyn_x86.cpp'
+      - 'src/cpu/core_dyn_x86/decoder.h'
+      - 'extras/guest-block-mapping/**'
+      - '.github/workflows/jit-block-mapping.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tools:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run lifecycle tests
+        working-directory: extras/guest-block-mapping
+        run: |
+          python3 -m unittest discover -s . -p 'test_*.py' -v
+          python3 -m py_compile analyze_trace.py test_analyze_trace.py run_guest_trace.py
+      - name: Compile Linux SIGPROF sampler
+        working-directory: extras/guest-block-mapping
+        run: |
+          cc -O2 -Wall -Wextra -shared -fPIC \
+            -o /tmp/preload_sigprof_thread.so preload_sigprof_thread.c \
+            -ldl -pthread
+          file /tmp/preload_sigprof_thread.so
+      - name: Assemble DOS self-modifying-code probe
+        working-directory: extras/guest-block-mapping
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y nasm
+          nasm -f bin smc_invalidations.asm -o /tmp/SMC.COM
+          test "$(wc -c < /tmp/SMC.COM)" -gt 50
+          nasm -f bin crosspage_invalidations.asm -o /tmp/XPG.COM
+          test "$(wc -c < /tmp/XPG.COM)" -gt 12000
+          nasm -f bin cache_wrap_stress.asm -o /tmp/WRAP.COM
+          test "$(wc -c < /tmp/WRAP.COM)" -gt 45000
+          test "$(wc -c < /tmp/WRAP.COM)" -lt 65280
+      - name: Compile and exercise trace recorder I/O failure checks
+        working-directory: extras/guest-block-mapping
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Werror \
+            test_jit_block_trace_io.cpp -o /tmp/test-jit-block-io
+          /tmp/test-jit-block-io
