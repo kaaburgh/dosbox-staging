@@ -7,6 +7,7 @@ org 0x100
 start:
     push cs
     pop ds
+    xor ax, ax              ; verify 96 executed INC instructions
     mov cx, 96
 .repeat:
     mov byte [target], 0x90   ; NOP
@@ -14,6 +15,8 @@ start:
     mov byte [target], 0x40   ; INC AX
     call target
     loop .repeat
+    cmp ax, 96
+    jne .fail               ; fail if JIT executed stale or incorrect code
 
     mov dx, outfile
     mov ah, 0x3c             ; DOS create/truncate
