@@ -1,0 +1,35 @@
+name: Guest block mapping diagnostics
+
+on:
+  push:
+    branches:
+      - experiments/quake-guest-block-mapping
+  pull_request:
+    paths:
+      - 'src/cpu/jit_block_trace.h'
+      - 'src/cpu/dyn_cache.h'
+      - 'src/cpu/core_dyn_x86.cpp'
+      - 'src/cpu/core_dyn_x86/decoder.h'
+      - 'extras/guest-block-mapping/**'
+      - '.github/workflows/jit-block-mapping.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tools:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run lifecycle tests
+        working-directory: extras/guest-block-mapping
+        run: |
+          python3 -m unittest discover -s . -p 'test_*.py' -v
+          python3 -m py_compile analyze_trace.py test_analyze_trace.py run_guest_trace.py
+      - name: Compile Linux SIGPROF sampler
+        working-directory: extras/guest-block-mapping
+        run: |
+          cc -O2 -Wall -Wextra -shared -fPIC \
+            -o /tmp/preload_sigprof_thread.so preload_sigprof_thread.c \
+            -ldl -pthread
+          file /tmp/preload_sigprof_thread.so
