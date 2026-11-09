@@ -450,13 +450,22 @@ static void dyn_write_word_release(DynReg * addr,DynReg * val,bool dword) {
 
 #else
 static bool mem_readd_checked_dcx64(PhysPt address, uint32_t* dst) {
+#ifdef DOSBOX_JIT_BLOCK_TRACE
+	JitHelperProbe::Sample(3, reinterpret_cast<uintptr_t>(__builtin_return_address(0)), address);
+#endif
 	return get_tlb_readhandler(address)->readd_checked(address, dst);
 }
 static bool mem_readw_checked_dcx64(PhysPt address, uint16_t* dst) {
 	return get_tlb_readhandler(address)->readw_checked(address, dst);
 }
 static bool mem_writed_checked_dcx64(PhysPt address, Bitu val) {
-	return get_tlb_writehandler(address)->writed_checked(address, val);
+#ifdef DOSBOX_JIT_BLOCK_TRACE
+ PageHandler* handler = get_tlb_writehandler(address);
+ JitHelperProbe::Sample(2, reinterpret_cast<uintptr_t>(__builtin_return_address(0)), address, handler);
+ return handler->writed_checked(address, val);
+#else
+ return get_tlb_writehandler(address)->writed_checked(address, val);
+#endif
 }
 static bool mem_writew_checked_dcx64(PhysPt address, Bitu val) {
 	return get_tlb_writehandler(address)->writew_checked(address, val);
@@ -713,6 +722,13 @@ static void dyn_push_unchecked(DynReg * dynreg) {
 	}
 }
 
+#ifdef DOSBOX_JIT_BLOCK_TRACE
+static bool ProbeCheckedStackWrite(PhysPt address, uint32_t value) {
+ JitHelperProbe::Sample(4, reinterpret_cast<uintptr_t>(__builtin_return_address(0)), address);
+ return mem_writed_checked(address, value);
+}
+#endif
+
 static void dyn_push(DynReg * dynreg) {
 	gen_protectflags();
 	gen_lea(DREG(STACK),DREG(ESP),nullptr,0,decode.big_op?(-4):(-2));
@@ -722,7 +738,12 @@ static void dyn_push(DynReg * dynreg) {
 	gen_dop_word(DOP_OR,true,DREG(NEWESP),DREG(STACK));
 	gen_dop_word(DOP_ADD,true,DREG(STACK),DREG(SS));
 	if (decode.big_op) {
-		gen_call_function((void *)&mem_writed_checked,"%Drd%Dd",DREG(STACK),dynreg);
+		#ifdef DOSBOX_JIT_BLOCK_TRACE
+        if (const char* probe = std::getenv("DOSBOX_JIT_HELPER_PROBE"); probe && *probe)
+            gen_call_function((void *)&ProbeCheckedStackWrite,"%Drd%Dd",DREG(STACK),dynreg);
+        else
+#endif
+            gen_call_function((void *)&mem_writed_checked,"%Drd%Dd",DREG(STACK),dynreg);
 	} else {
 		//Can just push the whole 32-bit word as operand
 		gen_call_function((void *)&mem_writew_checked,"%Drd%Dd",DREG(STACK),dynreg);

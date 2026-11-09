@@ -1,0 +1,10 @@
+{
+  "guest_eip": "0x10572",
+  "samples_by_handler": {
+    "vtable for VGA_ChainedVGA_Handler": 59821,
+    "vtable for InitPageHandler": 69
+  },
+  "guest_linear_ranges": {
+    "linear_A0000_AFFFF": 59890
+  }
+}
