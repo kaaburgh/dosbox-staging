@@ -130,6 +130,49 @@ an optimization or an upstream change. Validate after local execution:
 Do not claim the real wraparound path passed unless these four
 conditions are actually observed.
 
+## Bit-test and SETcc opcode regression probe
+
+`bit_test_semantics.asm` is a real-mode DOS COM program with two sections:
+16 cases of the bit-test instruction family (`BT`, `BTS`, `BTR`, `BTC` with a
+register and with an immediate bit index) on a 32-bit operand, and 3 cases of
+the x87 comparison idiom (`fnstsw ax; sahf`) that the Quake compiler emits
+for every floating-point comparison. Every carry flag and operand result is
+compared against expectations taken from the Intel SDM, and the raw results
+are written to `BTOUT.BIN` through `int 21h`. Byte 1 of that file is the
+number of deviations the program counted itself.
+
+```sh
+nasm -f bin extras/guest-block-mapping/bit_test_semantics.asm -o BITSEM.COM
+python3 extras/guest-block-mapping/run_bit_test_semantics.py \
+    --dosbox /path/to/dosbox --out /tmp/bit-test
+```
+
+The runner executes the program on `cpu core = normal` and on
+`cpu core = dynamic` and compares the two outputs byte for byte. On the
+current sources both cores produce the identical SHA-256
+`6a4d859e19bc8ab1f8f885c15c4660d232fdf83a9acfca12abc2c1016e55f0ff` with
+**0 deviations out of 19**.
+
+The probe exists because the dynamic core implements only 88 of the 256
+two-byte `0F` sub-opcodes and none of the `SETcc` family; the bit-test
+opcodes (`0F A3`, `0F AB`, `0F B3`, `0F BB`, `0F BA /4../7`), `BSF`/`BSR`,
+`CMOVcc` and the one-byte `LAHF`/`SAHF` are missing as well. An unhandled
+opcode reaches the decoder's `illegalopcode:` label, which ends the block
+with `gen_return(BR_Opcode)`; `CPU_Core_Dyn_X86_Run` then answers that with
+`sync_dh_fpu_and_run_normal_core()`, which transfers the whole x87 state
+into the interpreter and runs the single instruction there.
+
+The test reads the carry flag with `PUSHF`, not with `SETcc`, because
+`SETcc` is not translated either — a version that used `SETcc` compared the
+interpreter with the interpreter. With `PUSHF` the dynamic core translates
+the program: the trace-enabled run shows **33 blocks covering 67.5% of the
+image**, and every executed range that no block covered is one of the 19
+untranslatable instructions, one runtime fallback each.
+
+See [BIT_TEST_DECODER_GAP.md](BIT_TEST_DECODER_GAP.md) for the full
+analysis, the measured fallback profile of original Quake 1.06, and the
+acceptance criteria of a possible follow-up implementation.
+
 ## Verified correctness (local execution)
 
 - `SMC.COM`: self-modifying arithmetic and JIT invalidation, with guest
