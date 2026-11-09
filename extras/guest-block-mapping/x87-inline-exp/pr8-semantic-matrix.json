@@ -1,0 +1,200 @@
+[
+  {
+    "build": "off",
+    "core": "normal",
+    "case": "FPUTEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "off",
+    "core": "normal",
+    "case": "VGATEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "off",
+    "core": "normal",
+    "case": "SMC",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "off",
+    "core": "normal",
+    "case": "XPG",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "off",
+    "core": "dynamic",
+    "case": "FPUTEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "off",
+    "core": "dynamic",
+    "case": "VGATEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "off",
+    "core": "dynamic",
+    "case": "SMC",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "off",
+    "core": "dynamic",
+    "case": "XPG",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "inactive",
+    "core": "normal",
+    "case": "FPUTEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "inactive",
+    "core": "normal",
+    "case": "VGATEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "inactive",
+    "core": "normal",
+    "case": "SMC",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "inactive",
+    "core": "normal",
+    "case": "XPG",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "inactive",
+    "core": "dynamic",
+    "case": "FPUTEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "inactive",
+    "core": "dynamic",
+    "case": "VGATEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "inactive",
+    "core": "dynamic",
+    "case": "SMC",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "inactive",
+    "core": "dynamic",
+    "case": "XPG",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "active",
+    "core": "normal",
+    "case": "FPUTEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "active",
+    "core": "normal",
+    "case": "VGATEST",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "active",
+    "core": "normal",
+    "case": "SMC",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "active",
+    "core": "normal",
+    "case": "XPG",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": false
+  },
+  {
+    "build": "active",
+    "core": "dynamic",
+    "case": "FPUTEST",
+    "passed": true,
+    "probe_records": {
+      "0": 1,
+      "1": 1
+    },
+    "trace_exists": true
+  },
+  {
+    "build": "active",
+    "core": "dynamic",
+    "case": "VGATEST",
+    "passed": true,
+    "probe_records": {
+      "2": 7,
+      "3": 1
+    },
+    "trace_exists": true
+  },
+  {
+    "build": "active",
+    "core": "dynamic",
+    "case": "SMC",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": true
+  },
+  {
+    "build": "active",
+    "core": "dynamic",
+    "case": "XPG",
+    "passed": true,
+    "probe_records": {},
+    "trace_exists": true
+  }
+]

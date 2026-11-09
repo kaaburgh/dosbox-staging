@@ -1,0 +1,30 @@
+{
+  "x87bench": {
+    "AA": {
+      "A_median_wall_s": 4.73069,
+      "B_median_wall_s": 5.05458,
+      "B_vs_A_percent": 6.846569950683712,
+      "n_per_label": 2
+    },
+    "AB": {
+      "A_median_wall_s": 5.455075,
+      "B_median_wall_s": 5.26722,
+      "B_vs_A_percent": -3.4436740099815344,
+      "n_per_label": 4
+    }
+  },
+  "doom": {
+    "AA": {
+      "A_median_wall_s": 50.62635,
+      "B_median_wall_s": 46.069559999999996,
+      "B_vs_A_percent": -9.000826644622828,
+      "n_per_label": 2
+    },
+    "AB": {
+      "A_median_wall_s": 53.573679999999996,
+      "B_median_wall_s": 53.347985,
+      "B_vs_A_percent": -0.42127962835480925,
+      "n_per_label": 4
+    }
+  }
+}

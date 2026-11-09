@@ -1,0 +1,24 @@
+[
+  {
+    "build": "baseline",
+    "exit": 0,
+    "watchpoint": [
+      1,
+      0,
+      1
+    ],
+    "result_bytes": 768,
+    "probe_records": 256
+  },
+  {
+    "build": "candidate",
+    "exit": 0,
+    "watchpoint": [
+      1,
+      0,
+      1
+    ],
+    "result_bytes": 768,
+    "probe_records": 256
+  }
+]

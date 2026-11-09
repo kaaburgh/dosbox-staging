@@ -15,7 +15,7 @@ static void FPU_FLD_32(PhysPt addr) {
 #ifdef DOSBOX_JIT_BLOCK_TRACE
 	JitHelperProbe::Sample(0, reinterpret_cast<uintptr_t>(__builtin_return_address(0)), addr);
 #endif
-	dyn_dh_fpu.temp.m1 = mem_readd(addr);
+	dyn_dh_fpu.temp.m1 = mem_readd_inline<MemOpMode::WithBreakpoints>(addr);
 }
 
 static void FPU_FST_32(PhysPt addr) {

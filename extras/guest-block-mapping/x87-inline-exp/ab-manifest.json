@@ -1,0 +1,23 @@
+{
+  "design": "randomized ABBA/BAAB quartets; A baseline B candidate",
+  "warmups": 4,
+  "quartets": 8,
+  "seed": 20261109,
+  "orders": [
+    "ABBA",
+    "ABBA",
+    "BAAB",
+    "BAAB",
+    "ABBA",
+    "BAAB",
+    "BAAB",
+    "ABBA"
+  ],
+  "dosbox_baseline_sha256": "992fb3eb5899e7dcf00b9b9cc2868cb1ba36bcdb03528728ed7426a9c8b3a9d7",
+  "dosbox_candidate_sha256": "078b1d386d4b6d0b6aea097f08d0b9760fed490132b321f50cd76370b2373fb0",
+  "quake_sha256": "7cdb244122cc607cc6f162524bfcac60f6d11d8ca2ff07473d6cd962311161fb",
+  "config": "[dosbox]\nmemsize=32\n[cpu]\ncore=dynamic\ncputype=pentium\ncpu_cycles=3000\ncpu_cycles_protected=max\n[sdl]\noutput=texture\ntexture_renderer=software\n",
+  "video_backend": "SDL dummy software texture",
+  "cgroup_cpu_stat_available": false,
+  "cgroup_cpu_max": null
+}

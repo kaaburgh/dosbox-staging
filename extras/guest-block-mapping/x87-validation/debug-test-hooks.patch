@@ -1,0 +1,80 @@
+diff --git a/src/cpu/core_dyn_x86/dyn_fpu_dh.h b/src/cpu/core_dyn_x86/dyn_fpu_dh.h
+index d1f9cd3..60ddc3e 100644
+--- a/src/cpu/core_dyn_x86/dyn_fpu_dh.h
++++ b/src/cpu/core_dyn_x86/dyn_fpu_dh.h
+@@ -11,11 +11,21 @@ static void FPU_FST_16(PhysPt addr) {
+ 	mem_writew(addr,(uint16_t)dyn_dh_fpu.temp.m1);
+ }
+ 
++#if C_DEBUGGER && C_HEAVY_DEBUGGER && defined(X87_DEBUG_TEST_HOOK)
++extern void DEBUG_X87TestArm(PhysPt address);
++extern void DEBUG_X87TestVerify();
++#endif
+ static void FPU_FLD_32(PhysPt addr) {
++#if C_DEBUGGER && C_HEAVY_DEBUGGER && defined(X87_DEBUG_TEST_HOOK)
++ DEBUG_X87TestArm(addr);
++#endif
+ #ifdef DOSBOX_JIT_BLOCK_TRACE
+ 	JitHelperProbe::Sample(0, reinterpret_cast<uintptr_t>(__builtin_return_address(0)), addr);
+ #endif
+ 	dyn_dh_fpu.temp.m1 = mem_readd_inline<MemOpMode::WithBreakpoints>(addr);
++#if C_DEBUGGER && C_HEAVY_DEBUGGER && defined(X87_DEBUG_TEST_HOOK)
++ DEBUG_X87TestVerify();
++#endif
+ }
+ 
+ static void FPU_FST_32(PhysPt addr) {
+diff --git a/src/debugger/debugger.cpp b/src/debugger/debugger.cpp
+index eba4217..89e0123 100644
+--- a/src/debugger/debugger.cpp
++++ b/src/debugger/debugger.cpp
+@@ -7,6 +7,8 @@
+ #if C_DEBUGGER
+ 
+ #include <cctype>
++#include <cstdlib>
++#include <cstdio>
+ #include <cstring>
+ #include <fstream>
+ #include <iomanip>
+@@ -548,6 +550,40 @@ void CBreakpoint::Activate(bool _active)
+ 
+ // Statics
+ static std::list<CBreakpoint*> BPoints = {};
++#if C_HEAVY_DEBUGGER && defined(X87_DEBUG_TEST_HOOK)
++static CBreakpoint* x87_test_match = nullptr;
++static CBreakpoint* x87_test_miss = nullptr;
++static bool x87_test_done = false;
++void DEBUG_X87TestArm(PhysPt address)
++{
++ if (x87_test_done || !std::getenv("DOSBOX_X87_DEBUG_TEST")) return;
++ x87_test_done = true;
++ x87_test_match = new CBreakpoint();
++ x87_test_match->SetAddress(address);
++ x87_test_match->SetType(BKPNT_MEMORY_READ);
++ x87_test_match->FlagMemoryAsUnread();
++ x87_test_miss = new CBreakpoint();
++ x87_test_miss->SetAddress(address + 0x10000000);
++ x87_test_miss->SetType(BKPNT_MEMORY_READ);
++ x87_test_miss->FlagMemoryAsUnread();
++ x87_test_match->Activate(true);
++ x87_test_miss->Activate(true);
++ BPoints.push_back(x87_test_match);
++ BPoints.push_back(x87_test_miss);
++}
++void DEBUG_X87TestVerify()
++{
++ if (!x87_test_match) return;
++ const bool match = x87_test_match->WasMemoryRead();
++ const bool unrelated = x87_test_miss->WasMemoryRead();
++ const bool stop = DEBUG_HeavyIsBreakpoint();
++ std::fprintf(stderr, "X87_DEBUG_TEST match=%d unrelated=%d stop=%d\n", match, unrelated, stop);
++ BPoints.remove(x87_test_match); BPoints.remove(x87_test_miss);
++ delete x87_test_match; delete x87_test_miss;
++ x87_test_match = x87_test_miss = nullptr;
++}
++#endif
++
+ 
+ #if C_HEAVY_DEBUGGER
+ template <typename T>

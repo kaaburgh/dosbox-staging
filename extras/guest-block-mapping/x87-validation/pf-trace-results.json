@@ -1,0 +1,18 @@
+[
+  {
+    "build": "baseline",
+    "exit": 0,
+    "result_hex": "0000803f0000803f020000000000800000108000000000000000000000000000",
+    "fpu_probe_addresses": [
+      "0x800ffe"
+    ]
+  },
+  {
+    "build": "candidate",
+    "exit": 0,
+    "result_hex": "0000803f0000803f020000000000800000108000000000000000000000000000",
+    "fpu_probe_addresses": [
+      "0x800ffe"
+    ]
+  }
+]

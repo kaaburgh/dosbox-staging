@@ -1,0 +1,14 @@
+{
+  "baseline": {
+    "helper_bytes": 20,
+    "has_call_to_mem_readd": true,
+    "has_unaligned_read_reference": false,
+    "has_indirect_call": false
+  },
+  "candidate": {
+    "helper_bytes": 120,
+    "has_call_to_mem_readd": false,
+    "has_unaligned_read_reference": true,
+    "has_indirect_call": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "quartets": 8,
+  "A_median": 137.5,
+  "B_median": 141.25,
+  "geometric_B_vs_A_percent": 4.077861983266473,
+  "quartet_bootstrap_95pct_descriptive": [
+    -0.3551575314906019,
+    10.371919459095459
+  ],
+  "quartet_effects_pct": [
+    2.6533273462091556,
+    -4.624024848784614,
+    25.083720826465992,
+    1.7584146818423463,
+    3.016191287627179,
+    1.9937706488648566,
+    -1.3797093997452547,
+    6.619916082414834
+  ],
+  "caveat": "Shared host; exploratory only. One experiment and bootstrap independence assumption do not establish an improvement; validate on stable host."
+}

@@ -1,0 +1,32 @@
+{
+  "x87bench": {
+    "AA": {
+      "quartet_B_over_A_wall_pct": [
+        6.904253592631723
+      ],
+      "geometric_paired_B_over_A_wall_pct": 6.904253592631723
+    },
+    "AB": {
+      "quartet_B_over_A_wall_pct": [
+        7.795053699322456,
+        -24.758957987723466
+      ],
+      "geometric_paired_B_over_A_wall_pct": -9.941062830464594
+    }
+  },
+  "doom": {
+    "AA": {
+      "quartet_B_over_A_wall_pct": [
+        -9.127205683478664
+      ],
+      "geometric_paired_B_over_A_wall_pct": -9.127205683478664
+    },
+    "AB": {
+      "quartet_B_over_A_wall_pct": [
+        15.901719209406476,
+        -21.84038282413453
+      ],
+      "geometric_paired_B_over_A_wall_pct": -4.822092881636323
+    }
+  }
+}
