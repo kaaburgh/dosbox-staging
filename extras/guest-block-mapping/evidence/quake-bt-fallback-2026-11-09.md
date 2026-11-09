@@ -17,6 +17,13 @@ document or of the repository.
 
 An instrumented build counts every runtime transition from the dynamic core
 into the interpreter, keyed by guest address. One headless timedemo window:
+The counters come from a local instrumented build that is **not** part of
+this PR: a counter is incremented in `case BR_Opcode:` of
+`src/cpu/core_dyn_x86.cpp`, keyed by the guest `CS:EIP` of the instruction
+that could not be translated, and the table is written out at exit. The
+host-side mapping from guest addresses to opcodes is a ten-line lookup in
+the guest image's `.text` section.
+
 
 | Opcode | Fallbacks | Share |
 |---|---:|---:|
