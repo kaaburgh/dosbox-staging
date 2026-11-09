@@ -1,0 +1,42 @@
+{
+  "date_utc": "2026-11-09T03:29:39.843134+00:00",
+  "source_sha": "66884b444e6497fd13b3ac8ff5501af53b02a3ed",
+  "dosbox_sha256": "992fb3eb5899e7dcf00b9b9cc2868cb1ba36bcdb03528728ed7426a9c8b3a9d7",
+  "quake_sha256": "7cdb244122cc607cc6f162524bfcac60f6d11d8ca2ff07473d6cd962311161fb",
+  "pak0_sha256": "35a9c55e5e5a284a159ad2a62e0e8def23d829561fe2f54eb402dbc0a9a946af",
+  "host": [
+    "Linux",
+    "[redacted]",
+    "6.18.57",
+    "#1 SMP Tue Oct 20 21:56:04 UTC 2026",
+    "x86_64"
+  ],
+  "cpu_model": "AMD EPYC 9V74 80-Core Processor",
+  "visible_cpu_count": 9,
+  "affinity_cpus": 9,
+  "cgroup_cpu_max": null,
+  "cgroup_cpuset": null,
+  "warmups": 4,
+  "measured_repetitions": 32,
+  "quartet_label_order": [
+    "A",
+    "B",
+    "B",
+    "A"
+  ],
+  "A_equals_B": true,
+  "profiled": false,
+  "trace_compiled_out": true,
+  "config": "[dosbox]\nmemsize = 32\n[cpu]\ncore = dynamic\ncputype = pentium\ncpu_cycles = 3000\ncpu_cycles_protected = max\n[sdl]\noutput = texture\ntexture_renderer = software\n",
+  "fps_precision": "one decimal as logged by Quake",
+  "timedemo": "demo1",
+  "expected_frames": 969,
+  "video_backend": "SDL dummy / software texture; no X server",
+  "cgroup_cpu_stat_available": false,
+  "local_build_sdk_shims": [
+    "SDL mapper default texture scale call removed",
+    "FluidSynth portamento mode call removed",
+    "libiir_static.a symlinked to libiir.so"
+  ],
+  "library_provenance": "Debian trixie packages extracted to user-owned directory, see report"
+}
