@@ -8,7 +8,9 @@ Staging **0.84.0-alpha (91774)** built from fork commit
 |---|---|
 | DOSBox, Release, `OPT_JIT_BLOCK_TRACE=OFF` | `1b12b66eb4691578d0cc7abd5a678562e6e68078a64509f809e62c6941a9e481` |
 | DOSBox, Release, `OPT_JIT_BLOCK_TRACE=ON` | `ffd4e25086813cd54299eb3ce9a416c64a4cb72067a2b911d07107caa8903b2d` |
-| `BITSEM.COM` (assembled from `bit_test_semantics.asm`) | `87c1656ab7a9e192c8ff6864ecb559abd59b19759bcc11f12c7249cb53cd7bc4` |
+| `BITSEM.COM` (assembled from `bit_test_semantics.asm`) | `63093636969afb4e0d29a161e266d08ba174360c56c151363739309f15f86269` |
+| `BTOUT.BIN`, `cpu core = normal` | `6a4d859e19bc8ab1f8f885c15c4660d232fdf83a9acfca12abc2c1016e55f0ff` |
+| `BTOUT.BIN`, `cpu core = dynamic` | `6a4d859e19bc8ab1f8f885c15c4660d232fdf83a9acfca12abc2c1016e55f0ff` |
 
 Both builds are the unmodified fork sources; the only local build
 adjustments are two unrelated SDK shims for the keyboard mapper and MIDI
@@ -16,17 +18,35 @@ libraries, which do not touch the CPU or the dynamic core.
 
 ## What the test does
 
-`bit_test_semantics.asm` is a real-mode DOS COM program. It executes 16
-cases of the bit-test instruction family on a 32-bit operand, captures the
-carry flag with `setc` and the resulting operand, compares both against
-expectations taken from the Intel SDM, and writes the raw results to
-`BTOUT.BIN` through `int 21h`. Byte 1 of that file is the number of
-deviations the program counted itself.
+`bit_test_semantics.asm` is a real-mode DOS COM program with two sections.
 
-Coverage: `BT`, `BTS`, `BTR`, `BTC` with a register bit index and with an
-immediate bit index, an operand with bits 0 and 31 set (so set / clear /
-toggle are distinguishable), and a register index that must be masked to
-five bits.
+**Section 1 — the bit-test family (16 cases).** `BT`, `BTS`, `BTR` and
+`BTC` with a register bit index and with an immediate bit index, on a
+32-bit operand with bits 0 and 31 set (so set / clear / toggle results are
+distinguishable), plus an index that must be masked to five bits. The
+expected values are computed from the Intel SDM.
+
+**Section 2 — the x87 comparison idiom (3 cases).** `fldz; fld1; fucompp;
+fnstsw ax; sahf` and variants, which is what the Quake compiler emits for
+every floating-point comparison. `FNSTSW AX` puts `C0`/`C2`/`C3` into `AH`;
+`SAHF` moves `C0` into `CF` and `C3` into `ZF`. The test masks `AH` with
+`0x41` and checks `CF`/`ZF` for "greater", "less" and "equal".
+
+The program counts its own deviations from the expected values and writes
+the raw results to `BTOUT.BIN` through `int 21h`.
+
+## Why the carry flag is read with PUSHF and not SETcc
+
+`SETcc` (`0F 90`–`0F 9F`) is **not implemented** by the dynamic core, so an
+earlier revision of this test that captured `CF` with `SETcc` sent the
+whole program into the interpreter and compared the interpreter with itself.
+That revision also produced the misleading observation that "the dynamic
+core creates only three blocks" — those three blocks belonged to the DOS
+kernel, not to the test program.
+
+`PUSHF` (`0x9C`) and `POPF` (`0x9D`) *are* implemented, so the current
+revision is genuinely translated by the dynamic core, and the runner reports
+how much of it.
 
 ## Runs
 
@@ -40,52 +60,56 @@ python3 run_bit_test_semantics.py \
 
 | Run | CPU core | `BTOUT.BIN` SHA-256 | Self-check deviations |
 |---|---|---|---:|
-| 1 | `normal` (interpreter) | `640dffd87f299bc437c43c9ae07825deabd04057f295fc3a65ae13fa1580fd37` | 0 / 16 |
-| 2 | `dynamic` (dynrec) | `640dffd87f299bc437c43c9ae07825deabd04057f295fc3a65ae13fa1580fd37` | 0 / 16 |
-| 3 | `dynamic`, trace-enabled | `640dffd87f299bc437c43c9ae07825deabd04057f295fc3a65ae13fa1580fd37` | 0 / 16 |
+| 1 | `normal` (interpreter) | `6a4d859e19bc8ab1f8f885c1…` | 0 / 19 |
+| 2 | `dynamic` (dynrec) | `6a4d859e19bc8ab1f8f885c1…` | 0 / 19 |
 
-All three outputs are **byte-identical**, and the carry-flag sequence
-produced by the program is
+Both outputs are **byte-identical**. The captured results are
 
 ```
-CF:  1 1 0 1 0 1 1 1 0 0 1 0 1 1 0 0
-EAX: 80000001 80000001 80000001 80000001 80000003 00000001
-      80000000 80000000 80000003 80000001 80000001 80000021
-      80000000 00000001 80000001 80000003
+CF / flags:  1 1 0 1 0 1 1 1 0 0 1 0 1 1 0 0   (section 1)
+             0 1 64                            (section 2: greater, less, equal)
+EAX:         80000001 80000001 80000001 80000001 80000003 00000001
+             80000000 80000000 80000003 80000001 80000001 80000021
+             80000000 00000001 80000001 80000003
 ```
 
-which matches the expected values exactly.
+which match the expected values exactly.
 
-## Dynamic-core block trace
+## Dynamic-core coverage
 
-The trace-enabled run recorded 65 block lifecycle rows in total. Exactly
-**three** of them belong to the test program's own segment (`CS = 0x01E4`):
+The trace-enabled run shows that the dynamic core translated **33 blocks**
+covering 689 of the 1021 image bytes (67.5%). The image also contains the
+DOS stub header and the expected-value tables, which are never executed.
+Every *executed* byte range that no block covered is one of the 19
+untranslatable instructions:
 
-| Generation | Guest EIP | Guest range | Native size |
-|---|---|---|---:|
-| 8 | `0x00000100` | `[0x1F40, 0x1F4A)` | 183 B |
-| 10 | `0x0000010A` | `[0x1F4A, 0x1F4E)` | 110 B |
-| 15 | `0x0000010E` | `[0x1F4E, 0x1F53)` | 161 B |
+| Guest image range | Instruction | Bytes |
+|---|---|---:|
+| `0x0116`, `0x0137`, `0x0158`, `0x0179`, `0x019A`, `0x01BB`, `0x01DC`, `0x01FD`, `0x021E` | `BT`/`BTS`/`BTR`/`BTC` (register index) | 1 each |
+| `0x0239`, `0x0255`, `0x0271`, `0x028D`, `0x02A9`, `0x02CB`, `0x02EC`, `0x0314`, `0x032A` | `BT`/`BTS`/`BTR`/`BTC` (immediate index) | 1–2 each |
+| `0x0379` | `SAHF` (x87 comparison idiom) | 2 |
 
-The last block ends at guest offset `0x113`, which is exactly where the
-first bit-test instruction starts. **No further block is created for the
-rest of the program**, although the program runs to completion and writes a
-correct output file: everything after the first bit-test instruction is
-executed by the interpreter through the `BR_Opcode` path.
-
-This is the same mechanism that was observed in the Quake 1.06 guest, where
-the block starting at guest `0x2F5B3` ends immediately after the bit-test
-instruction and a separate 94-byte single-instruction block is created for
-the bit-test address itself.
+The instrumented build also counts the runtime fallbacks of this run:
+**19 fallbacks, one per uncovered instruction** (16 bit-test, 3 `SAHF`).
+The test therefore reproduces the Quake-side phenomenon in miniature: the
+dynamic core translates everything it can and hands the missing opcodes to
+the interpreter, while the guest-visible results stay correct.
 
 ## Scope of validation
 
 - The test establishes that the interpreter and the dynamic core agree on
-  these 16 cases, and that the dynamic core currently delegates them.
-- It does **not** cover the 16-bit operand forms (`66 0F A3` with a 16-bit
-  operand), memory operands, or a bit index that exceeds the operand width
-  (undefined by the SDM). Those cases need their own expectations before an
-  implementation is proposed.
+  these 19 cases and that the dynamic core delegates exactly the missing
+  opcodes.
+- It does **not** cover the 16-bit operand forms, memory operands, or a bit
+  index that exceeds the operand width. For a *memory* bit base the
+  instruction operates on a bit string that may extend beyond the operand's
+  dword, so an implementation must reproduce the SDM's addressing rather
+  than mask the index; the committed test cannot check that yet.
+- The `PF` bit of the x87 comparison is not checked: the emulator's FPU
+  comparison path does not propagate `C2` into the status word
+  (`exc_mask` drops bit 10), so `PF` is always zero there. That is a
+  pre-existing emulator behaviour, unrelated to this work, and the test
+  avoids depending on it.
 - It does not measure performance; it is a correctness gate.
 - No proprietary game files, guest byte snapshots, native code blobs or raw
   sample addresses are stored in the repository.
