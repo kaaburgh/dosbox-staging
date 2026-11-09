@@ -1,0 +1,138 @@
+name: Quake 1.06 A/A timedemo stability (uninstrumented)
+
+on:
+  push:
+    branches: [experiments/quake-timedemo-stability]
+    paths:
+      - '.github/workflows/quake-timedemo-aa-stability.yml'
+      - 'extras/guest-block-mapping/run_quake_stability.py'
+      - 'extras/guest-block-mapping/report_quake_stability.py'
+      - 'extras/guest-block-mapping/test_report_quake_stability.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  same-host-aa-stability:
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    timeout-minutes: 60
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      RUNROOT: /tmp/quake-stability
+      BENCHMARK_URL: https://github.com/user-attachments/files/21488506/quake-benchmark.zip
+    steps:
+      - name: Install compiler, Debian 13 libraries and Xvfb
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl git cmake ninja-build g++ gcc pkg-config python3 \
+            libasound2-dev libfluidsynth-dev libiir-dev libpng-dev libopusfile-dev \
+            libspeexdsp-dev libsdl3-dev libsdl3-image-dev libasio-dev zlib1g-dev \
+            libgl-dev nasm binutils xvfb x11-utils xauth
+          mkdir -p "$RUNROOT/public" "$RUNROOT/private"
+          cat /etc/os-release > "$RUNROOT/public/OS_RELEASE"
+          (g++ --version; cmake --version; ninja --version) > "$RUNROOT/public/TOOLCHAIN"
+
+      - uses: actions/checkout@v4
+
+      - name: Static and synthetic benchmark harness tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile extras/guest-block-mapping/run_quake_stability.py \
+            extras/guest-block-mapping/report_quake_stability.py
+          python3 -m unittest discover -s extras/guest-block-mapping \
+            -p 'test_report_quake_stability.py' -v
+
+      - name: Download source-authorized benchmark and pin original Quake 1.06
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 4 --max-time 180 \
+            "$BENCHMARK_URL" -o "$RUNROOT/private/quake-benchmark.zip"
+          python3 extras/guest-block-mapping/prepare_official_quake.py \
+            --archive "$RUNROOT/private/quake-benchmark.zip" \
+            --game-dir "$RUNROOT/private/game" \
+            --manifest "$RUNROOT/public/QUAKE_PROVENANCE.json"
+
+      - name: Apply historical build compatibility shims (never CPU/JIT)
+        shell: bash
+        run: |
+          set -euo pipefail
+          multiarch="$(gcc -dumpmachine)"
+          if [ ! -e "/usr/lib/$multiarch/libiir_static.a" ]; then
+            ln -s libiir.so "/usr/lib/$multiarch/libiir_static.a"
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          edits = {
+            'src/gui/mapper.cpp': (
+              'SDL_SetDefaultTextureScaleMode(mapper.renderer, SDL_SCALEMODE_NEAREST);',
+              '/* SDK shim: only unused keyboard mapper. */'),
+            'src/midi/fluidsynth.cpp': (
+              'fluid_synth_set_portamento_time_mode(fluid_synth.get(),\n\t                                     FLUID_PORTAMENTO_TIME_MODE_XG_GS);',
+              '/* SDK shim: MIDI disabled for Quake. */'),
+          }
+          for path, (old, new) in edits.items():
+              p = Path(path)
+              s = p.read_text()
+              assert s.count(old) == 1, (path, s.count(old))
+              p.write_text(s.replace(old, new))
+          PY
+          echo 'Only SDL mapper and FluidSynth compatibility shims; CPU/JIT unchanged' \
+            > "$RUNROOT/public/BUILD_SHIMS"
+
+      - name: Compile DOSBox Staging Release with trace instrumentation entirely OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S . -B "$RUNROOT/build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DUSE_SYSTEM_LIBS=ON \
+            -DOPT_MT32EMU=OFF -DOPT_TESTS=OFF -DOPT_DOCUMENTATION=OFF \
+            -DOPT_JIT_BLOCK_TRACE=OFF
+          cmake --build "$RUNROOT/build" -j2
+          test -x "$RUNROOT/build/dosbox"
+          sha256sum "$RUNROOT/build/dosbox" > "$RUNROOT/public/DOSBOX_SHA256"
+          cp "$RUNROOT/build/dosbox" "$RUNROOT/public/dosbox-staging-084-trace-off"
+          ldd "$RUNROOT/build/dosbox" > "$RUNROOT/public/DOSBOX_LDD"
+          echo "$GITHUB_SHA" > "$RUNROOT/public/FORK_SHA"
+
+      - name: Run 4 warmups + 48 repeated same-binary A/A Quake timedemos
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 extras/guest-block-mapping/run_quake_stability.py \
+            --dosbox "$RUNROOT/build/dosbox" \
+            --game "$RUNROOT/private/game" \
+            --runtime-cwd "$GITHUB_WORKSPACE" \
+            --out "$RUNROOT/public/measurements" \
+            --private "$RUNROOT/private/runs" \
+            --warmups 4 --repetitions 48 --timeout 90 --display :172
+          python3 extras/guest-block-mapping/report_quake_stability.py \
+            --csv "$RUNROOT/public/measurements/timedemos.csv" \
+            --manifest "$RUNROOT/public/measurements/manifest.json" \
+            --out "$RUNROOT/public/measurements/summary.json"
+          echo "A/A baseline complete; interpretation is experimental, not a speedup claim."
+
+      - name: Diagnose incomplete runs without exposing game bytes
+        if: failure()
+        shell: bash
+        run: |
+          set -u
+          if [ -d "$RUNROOT/private/runs" ]; then
+            find "$RUNROOT/private/runs" -maxdepth 1 -type f -name 'dosbox-*.log' \
+              -print -exec tail -n 35 {} \; | cut -c1-280 | tail -n 85 || true
+          fi
+
+      - name: Publish open-source DOSBox binary and derived stability measurements only
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quake106-same-host-aa-stability-and-dosbox-no-game
+          path: /tmp/quake-stability/public/
+          retention-days: 7
+          compression-level: 6
