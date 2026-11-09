@@ -77,6 +77,23 @@ block execution, so sampling cannot separate the shares:
 block, re-enters the dispatcher, re-resolves the code page and resumes
 translation; a credible total is **1.3–1.7%** of the main thread.
 
+The measurement was repeated on a five-run pool (41,502 samples in the demo
+window, 1100 us period) and reproduces the single-run numbers:
+
+| Symbol | Pooled samples | % of window | Single run |
+|---|---:|---:|---:|
+| `CPU_Core_Normal_Run` | 193 | 0.47% | 0.56% |
+| `sync_dh_fpu_and_run_normal_core` | 88 | 0.21% | - |
+| `FPU_GetPRegsTo` | 114 | 0.27% | 0.39% |
+| `FPU_SetPRegsFrom` | 100 | 0.24% | 0.25% |
+| **directly attributable** | **495** | **1.19%** | 1.20% |
+| `MakeCodePage` | 594 | 1.43% | 1.52% |
+
+The x87 share, measured the same way with nested caller resolution, is
+**7.09%** of the window (4.65% of it is `mem_readd` called by `FPU_FLD_32`),
+which reproduces the earlier single-run estimate of 7.05% within 0.04
+percentage points.
+
 ## 3. The x87 share of the helper traffic
 
 The helper attribution (see the research repository) resolves nested helper
