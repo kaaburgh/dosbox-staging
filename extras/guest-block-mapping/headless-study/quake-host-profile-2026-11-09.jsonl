@@ -1,0 +1,236 @@
+{
+  "period_us": 1100,
+  "samples_main_observed_window": 1944,
+  "regions": [
+    [
+      "[anonymous]",
+      821
+    ],
+    [
+      "dosbox",
+      331
+    ],
+    [
+      "ld-linux-x86-64.so.2",
+      282
+    ],
+    [
+      "libc.so.6",
+      261
+    ],
+    [
+      "libSDL3.so.0.2.10",
+      129
+    ],
+    [
+      "[not in snapshot maps]",
+      119
+    ],
+    [
+      "libstdc++.so.6.0.33",
+      1
+    ]
+  ],
+  "executable_symbols": [
+    [
+      "unsigned int mem_readd<(MemOpMode)0>(unsigned int)",
+      75
+    ],
+    [
+      "CPU_Core_Dyn_X86_Run()",
+      37
+    ],
+    [
+      "mem_writed_checked(unsigned int, unsigned int)",
+      27
+    ],
+    [
+      "MakeCodePage(unsigned long, CodePageHandler*&)",
+      24
+    ],
+    [
+      "FPU_FLD_32(unsigned int)",
+      23
+    ],
+    [
+      "mem_readd_checked(unsigned int, unsigned int*)",
+      18
+    ],
+    [
+      "ScaleHoriz2x_32(void const*)",
+      17
+    ],
+    [
+      "mem_writed(unsigned int, unsigned int)",
+      13
+    ],
+    [
+      "mem_writed_checked_dcx64(unsigned int, unsigned long)",
+      9
+    ],
+    [
+      "CPU_Core_Normal_Run()",
+      8
+    ],
+    [
+      "FPU_FST_32(unsigned int)",
+      7
+    ],
+    [
+      "unsigned short mem_readw<(MemOpMode)0>(unsigned int)",
+      6
+    ],
+    [
+      "sync_dh_fpu_and_run_normal_core()",
+      6
+    ],
+    [
+      "VGA_ChainedVGA_Handler::writed(unsigned int, unsigned int)",
+      5
+    ],
+    [
+      "PIC_RunQueue()",
+      4
+    ],
+    [
+      "draw_linear_line_from_dac_palette(unsigned long, unsigned long)",
+      4
+    ],
+    [
+      "MEM_GetPageHandler(unsigned long)",
+      4
+    ],
+    [
+      "FPU_GetPRegsTo(unsigned char (*) [10])",
+      4
+    ],
+    [
+      "InitPageHandler::InitPage(unsigned int, bool) [clone .isra.0]",
+      3
+    ],
+    [
+      "opcode::Emit8(unsigned char)",
+      2
+    ]
+  ]
+}
+{
+  "period_us": 1700,
+  "samples_main_observed_window": 2063,
+  "regions": [
+    [
+      "[anonymous]",
+      895
+    ],
+    [
+      "libc.so.6",
+      327
+    ],
+    [
+      "dosbox",
+      306
+    ],
+    [
+      "ld-linux-x86-64.so.2",
+      277
+    ],
+    [
+      "libSDL3.so.0.2.10",
+      130
+    ],
+    [
+      "[not in snapshot maps]",
+      126
+    ],
+    [
+      "[vdso]",
+      1
+    ],
+    [
+      "libstdc++.so.6.0.33",
+      1
+    ]
+  ],
+  "executable_symbols": [
+    [
+      "unsigned int mem_readd<(MemOpMode)0>(unsigned int)",
+      71
+    ],
+    [
+      "CPU_Core_Dyn_X86_Run()",
+      33
+    ],
+    [
+      "mem_writed_checked(unsigned int, unsigned int)",
+      27
+    ],
+    [
+      "FPU_FLD_32(unsigned int)",
+      24
+    ],
+    [
+      "MakeCodePage(unsigned long, CodePageHandler*&)",
+      19
+    ],
+    [
+      "mem_writed_checked_dcx64(unsigned int, unsigned long)",
+      16
+    ],
+    [
+      "FPU_FST_32(unsigned int)",
+      14
+    ],
+    [
+      "mem_readd_checked(unsigned int, unsigned int*)",
+      14
+    ],
+    [
+      "mem_writed(unsigned int, unsigned int)",
+      12
+    ],
+    [
+      "draw_linear_line_from_dac_palette(unsigned long, unsigned long)",
+      12
+    ],
+    [
+      "ScaleHoriz2x_32(void const*)",
+      9
+    ],
+    [
+      "VGA_ChainedVGA_Handler::writed(unsigned int, unsigned int)",
+      6
+    ],
+    [
+      "unsigned short mem_readw<(MemOpMode)0>(unsigned int)",
+      5
+    ],
+    [
+      "FPU_GetPRegsTo(unsigned char (*) [10])",
+      4
+    ],
+    [
+      "sync_dh_fpu_and_run_normal_core()",
+      3
+    ],
+    [
+      "PageHandler::writed_checked(unsigned int, unsigned int)",
+      3
+    ],
+    [
+      "CPU_Core_Normal_Run()",
+      3
+    ],
+    [
+      "MEM_BlockWrite(unsigned int, void const*, unsigned long)",
+      2
+    ],
+    [
+      "mem_writew(unsigned int, unsigned short)",
+      2
+    ],
+    [
+      "write_byte_to_port(unsigned short, unsigned char)",
+      2
+    ]
+  ]
+}
