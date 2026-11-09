@@ -39,6 +39,8 @@ and stale register values; PR #10 changes this for m32 loads only.
   seconds/FPS in every run).
 - `summarize_bench.py` — per-label medians/CV and within-block paired ratios
   with a bootstrap over blocks.
+- `pooled_compare.py` — pools several series; each block's reference is the
+  geometric mean of the identical-binary placebo labels (e.g. `base`,`base2`).
 - `profile_quake.py` — attaches `perf record --call-graph dwarf` only for the
   demo window.
 - `analyze_jit.py` — joins `perf script` samples with the JIT block dump by
