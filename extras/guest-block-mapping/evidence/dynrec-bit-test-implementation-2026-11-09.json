@@ -1,0 +1,154 @@
+{
+  "schema": 1,
+  "experiment": "Quake 1.06 demo1 timedemo, real A/B of two binaries (ABBA quartets)",
+  "date_utc": "2026-11-09T21:21:33.376748+00:00",
+  "host": {
+    "cpu_model": "Intel(R) Xeon(R) Platinum",
+    "visible_cpu_count": 2,
+    "cgroup_cpu_max": null,
+    "cpu_pinning": null
+  },
+  "configuration": {
+    "timedemo": "demo1",
+    "expected_frames": 969,
+    "cpu_cycles": 3000,
+    "cpu_cycles_protected": "max",
+    "sdl": "output = texture, texture_renderer = software",
+    "video_driver": "dummy",
+    "audio_driver": "dummy"
+  },
+  "protocol": {
+    "warmups_discarded": 4,
+    "measured_runs": 32,
+    "runs_per_arm": 16,
+    "quartet_order": [
+      "A",
+      "B",
+      "B",
+      "A"
+    ],
+    "contrast_estimator": "per quartet (A + A - B - B) / 2 on log values",
+    "interval": "percentile bootstrap over the 8 quartet differences, 10000 resamples"
+  },
+  "binaries": {
+    "arm_a_sha256": "1b12b66eb4691578d0cc7abd5a678562e6e68078a64509f809e62c6941a9e481",
+    "arm_b_sha256": "4508da4f43793a122b82dc158f0cef3bdb3db01cd1741679a6794a34c5cd6633",
+    "arms_use_different_binaries": true,
+    "difference": "arm B adds the BT/BTS/BTR/BTC register form, SETcc and SAHF to the dynamic core"
+  },
+  "result": {
+    "fps": {
+      "arm_a_median": 112.8,
+      "arm_b_median": 121.2,
+      "contrast_a_over_b_pct": -6.381,
+      "bootstrap_95pct_interval_pct": [
+        -7.356,
+        -5.39
+      ],
+      "arm_b_is_faster_by_pct": 6.381,
+      "all_runs_coefficient_of_variation_pct": 3.785
+    },
+    "host_cpu_time": {
+      "contrast_a_over_b_pct": 6.624,
+      "bootstrap_95pct_interval_pct": [
+        5.768,
+        7.564
+      ],
+      "arm_b_uses_less_cpu_by_pct": 6.624,
+      "median_cpu_ms_per_frame": 9.0008,
+      "mde_80pct_power_alpha_0.05_pct": 1.308
+    },
+    "detection_floor": {
+      "basis": "A/A placebo quartet dispersion on this host",
+      "quartets": 8,
+      "mde_80pct_power_alpha_0.05_pct": 1.63,
+      "quartets_needed_for_effect": {
+        "1pct_effect": 22,
+        "2pct_effect": 6,
+        "3pct_effect": 3
+      },
+      "note": "a real A/B on this host needs at least this many quartets per arm to resolve the effect; the A/A estimate itself may be optimistic if host noise is autocorrelated"
+    }
+  },
+  "host_interference": {
+    "runs_with_throttling_events": 0,
+    "total_throttled_ms": 0
+  },
+  "independent_replication": {
+    "note": "an earlier A/B of the same code change on the same node, run before the comment-only source cleanup; only its summary numbers were kept",
+    "fps_contrast_a_over_b_pct": -5.248,
+    "fps_bootstrap_95pct_interval_pct": [
+      -6.583,
+      -3.891
+    ],
+    "cpu_contrast_a_over_b_pct": 5.588,
+    "cpu_bootstrap_95pct_interval_pct": [
+      4.589,
+      6.497
+    ],
+    "cpu_mde_80pct_power_alpha_0.05_pct": 1.398
+  },
+  "fallback_accounting": {
+    "instrumentation": "local patch, not part of the branch; counts interpreter entries by guest CS:EIP",
+    "timedemo": "demo1, 969 frames, same node and configuration for both builds",
+    "base_branch_total": 2185284,
+    "branch_total": 301653,
+    "quake_code_entries_base": 1863789,
+    "quake_code_entries_branch": 0,
+    "removed_sites": {
+      "0x00a7:0x02f5c6": [
+        894278,
+        0
+      ],
+      "0x00a7:0x00491c": [
+        368672,
+        0
+      ],
+      "0x00a7:0x031b6d": [
+        289352,
+        0
+      ],
+      "0x00a7:0x032994": [
+        102502,
+        0
+      ],
+      "0x00a7:0x04ed40": [
+        97835,
+        0
+      ],
+      "0x00a7:0x04ed5c": [
+        88485,
+        0
+      ],
+      "0x00a7:0x02f6a6": [
+        32666,
+        0
+      ]
+    },
+    "unchanged_dos_site_control": {
+      "0x0d04d:0x02b01": [
+        13221,
+        13268
+      ]
+    }
+  },
+  "correctness_gate": {
+    "test": "bit_test_semantics.asm, 19 cases, interpreter core vs dynamic core",
+    "interpreter_exit_code": 0,
+    "dynamic_exit_code": 0,
+    "output_byte_identical": true,
+    "in_program_deviations": 0,
+    "guest_image_bytes_translated": [
+      710,
+      1021
+    ],
+    "translated_pct": 69.5,
+    "dynamic_core_blocks": 19
+  },
+  "limitations": [
+    "one node only: the effect size and the detection floor are node properties",
+    "the measured effect exceeds the 1.19 percent fallback-window estimate because the earlier attribution counted interpreter samples but not the block teardown and re-translation cost that every fallback also causes",
+    "SAHF still costs one C helper call per execution",
+    "BT with a memory bit base still falls back to the interpreter by design"
+  ]
+}
