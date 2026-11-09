@@ -1,0 +1,34 @@
+[
+  {
+    "test": "MUNMASK",
+    "label": "baseline",
+    "core": "normal",
+    "exit": 0,
+    "bytes": 32,
+    "output_hex": "01387e030000000004387b03000000002802770300000000203a5f0300000000"
+  },
+  {
+    "test": "MUNMASK",
+    "label": "baseline",
+    "core": "dynamic",
+    "exit": 0,
+    "bytes": 32,
+    "output_hex": "01387e030000000004387b03000000002802770300000000203a5f0300000000"
+  },
+  {
+    "test": "MUNMASK",
+    "label": "candidate",
+    "core": "normal",
+    "exit": 0,
+    "bytes": 32,
+    "output_hex": "01387e030000000004387b03000000002802770300000000203a5f0300000000"
+  },
+  {
+    "test": "MUNMASK",
+    "label": "candidate",
+    "core": "dynamic",
+    "exit": 0,
+    "bytes": 32,
+    "output_hex": "01387e030000000004387b03000000002802770300000000203a5f0300000000"
+  }
+]

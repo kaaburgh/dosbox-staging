@@ -48,3 +48,8 @@ Quake completion proves the timedemo finished, not that every rendered pixel was
 2. Run `run_tests.py` with `--baseline`, `--candidate`, `--candidate-traced`, `--runtime-cwd`, `--out` and `--nasm`; use PR #8's `run_semantic_matrix.py` for its inherited fixtures.
 3. Run `benchmark_ab.py` with `--runner executed-headless-runner.py`, explicit baseline/candidate/game/runtime paths, private and output directories, and the recorded seed/quartet count. Missing cgroup data appears as blank in the CSV, despite the original helper's pre-correction progress output printing zero.
 4. Before considering a merge, add meaningful protected fault/debugger coverage and run randomized paired A/B with A/A controls on a low-noise target plus another workload. Evaluate code-size and performance regressions, and preserve exception and debugger semantics.
+
+
+## Follow-up validation — 2026-11-09
+
+Protected-mode non-present read faults recovered equivalently in normal and dynamic cores, and a heavy-debugger harness confirmed the read-watchpoint flag and stop decision. Unmasked x87 #MF delivery remains a **pre-existing emulator limitation** in the tested case: both builds set the status flag but neither delivered vector 16 with CR0.NE set. This is a known failing architectural boundary, not a proof of full x87 exception correctness. Additional x87-loop and Doom 1.9 measurements on a different, noisy host were inconclusive against A/A controls. See [the detailed follow-up](../x87-validation/REPORT.md) for test boundaries, data and reproducible fixtures.
