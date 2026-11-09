@@ -730,6 +730,39 @@ static void gen_sop_byte(SingleOps op,DynReg * dr1,Bitu di1) {
 	dr1->flags|=DYNFLG_CHANGED;
 }
 
+// BT/BTS/BTR/BTC with a register bit base. The x86-64 encoding of these
+// instructions is identical to the 32-bit encoding, so the generated code is
+// the guest opcode with the host register mapping applied. Only the
+// register bit base is implemented; a memory bit base keeps the bit string
+// semantics of the Intel SDM and is left to the interpreter.
+static void gen_bit_test(uint16_t op,DynReg * bitbase,DynReg * index,bool dword) {
+	opcode i;
+	if (!dword) i.setword();
+	i.setreg(FindDynReg(index)->index);
+	i.setrm(FindDynReg(bitbase)->index);
+	// the 0F prefix is the low byte of the little endian 16 bit opcode
+	i.Emit16((uint16_t)((op<<8)|0x0f));
+}
+
+// BT/BTS/BTR/BTC with an immediate bit index (0F BA /4../7).
+static void gen_bit_test_imm(uint16_t op,uint8_t sub,DynReg * bitbase,Bitu imm,bool dword) {
+	opcode i;
+	if (!dword) i.setword();
+	i.setreg(sub);
+	i.setrm(FindDynReg(bitbase)->index);
+	i.setimm(imm,1);
+	i.Emit16((uint16_t)((op<<8)|0x0f));
+}
+
+// SETcc r/m8 (0F 90-9F). The condition codes are read from the flags;
+// the flags themselves are left unchanged.
+static void gen_setcc(uint8_t cc,DynReg * dr1,Bitu di1) {
+	opcode i;
+	i.setreg(0);				// the /digit is 0, the condition is in the opcode
+	i.setrm(FindDynReg(dr1)->index,di1);
+	i.Emit16((uint16_t)(0x900f+(cc<<8)));
+}
+
 static void gen_extend_word(bool sign,DynReg * ddr,DynReg * dsr) {
 	if (ddr==dsr && dsr->genreg==nullptr)
 		opcode(FindDynReg(ddr,true)->index).setabsaddr(dsr->data).Emit16(sign ? 0xBF0F:0xB70F);

@@ -416,6 +416,14 @@ bool CPU_POPF(Bitu use32)
 	return false;
 }
 
+void CPU_SAHF(void)
+{
+	/* SAHF: CF,PF,AF,ZF,SF are loaded from AH; the other flags are kept.
+	 * This mirrors the interpreter core (SETFLAGSb(reg_ah)). */
+	CPU_SetFlags(reg_ah, FMASK_NORMAL & 0xff);
+	DestroyConditionFlags();
+}
+
 bool CPU_PUSHF(Bitu use32)
 {
 	if (cpu.pmode && GETFLAG(VM) && (GETFLAG(IOPL) != FLAG_IOPL)) {

@@ -156,6 +156,7 @@ void CPU_IRET(bool use32, Bitu oldeip);
 void CPU_HLT(Bitu oldeip);
 
 bool CPU_POPF(Bitu use32);
+void CPU_SAHF(void);
 bool CPU_PUSHF(Bitu use32);
 bool CPU_CLI();
 bool CPU_STI();

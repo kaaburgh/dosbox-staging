@@ -13,6 +13,7 @@ enum REP_Type {
 	REP_NONE=0,REP_NZ,REP_Z
 };
 
+
 static struct DynDecode {
 	PhysPt code;
 	PhysPt code_start;
@@ -1027,6 +1028,63 @@ static void dyn_dop_gbeb(DualOps op) {
 	}
 }
 
+// SETcc r/m8 (0F 90-9F). The flags are read, not changed.
+static void dyn_setcc(uint8_t cc) {
+	dyn_get_modrm();
+	gen_needflags();
+	if (decode.modrm.mod<3) {
+		// The value has to be produced before the effective address is
+		// calculated: the address arithmetic and the memory write both
+		// clobber the flags, and SETcc has to preserve them.
+		gen_setcc(cc,DREG(TMPB),0);
+		gen_protectflags();
+		dyn_fill_ea();
+		dyn_write_byte(DREG(EA),DREG(TMPB),false,true);
+	} else {
+		DynReg * rm_reg=&DynRegs[decode.modrm.rm&3];
+		Bitu rm_regi=decode.modrm.rm&4;
+		gen_setcc(cc,rm_reg,rm_regi);
+	}
+}
+
+// BT/BTS/BTR/BTC with a register bit base (0F A3/AB/B3/BB).
+// A memory bit base is not implemented: the Intel SDM defines a bit string
+// that may reach beyond the operand, which is left to the interpreter.
+static bool dyn_bit_test_reg(uint16_t op) {
+	dyn_get_modrm();
+	if (decode.modrm.mod!=3) return false;
+	DynReg * bitbase=&DynRegs[decode.modrm.rm];
+	DynReg * index=&DynRegs[decode.modrm.reg];
+	gen_needflags();
+	gen_bit_test(op,bitbase,index,decode.big_op);
+	if (op!=0xa3) bitbase->flags|=DYNFLG_CHANGED;
+	return true;
+}
+
+// BT/BTS/BTR/BTC with an immediate bit index (0F BA /4../7).
+static bool dyn_bit_test_imm(void) {
+	dyn_get_modrm();
+	uint8_t sub=decode.modrm.reg;
+	if (sub<4 || sub>7) return false;
+	if (decode.modrm.mod!=3) return false;
+	Bitu imm=decode_fetchb();
+	DynReg * bitbase=&DynRegs[decode.modrm.rm];
+	gen_needflags();
+	gen_bit_test_imm(0xba,sub,bitbase,imm,decode.big_op);
+	if (sub!=4) bitbase->flags|=DYNFLG_CHANGED;
+	return true;
+}
+
+// SAHF (0x9E): load CF,PF,AF,ZF,SF from AH.
+static void dyn_sahf(void) {
+	// Same structure as POPF: the helper updates the guest flags in memory and
+	// the block's flag slot is refreshed afterwards.
+	gen_releasereg(DREG(ESP));
+	gen_releasereg(DREG(FLAGS));
+	gen_call_function((void *)&CPU_SAHF,"");
+	dyn_flags_host_to_gen();
+}
+
 static void dyn_mov_ebib(void) {
 	dyn_get_modrm();
 	if (decode.modrm.mod<3) {
@@ -2007,6 +2065,20 @@ restart_prefix:
 			/* SHLD Imm/cl*/
 			case 0xa4:dyn_dshift_ev_gv(true,true);break;
 			case 0xa5:dyn_dshift_ev_gv(true,false);break;
+			/* SETcc */
+			case 0x90:case 0x91:case 0x92:case 0x93:
+			case 0x94:case 0x95:case 0x96:case 0x97:
+			case 0x98:case 0x99:case 0x9a:case 0x9b:
+			case 0x9c:case 0x9d:case 0x9e:case 0x9f:
+				dyn_setcc(dual_code-0x90);
+				break;
+			/* BT/BTS/BTR/BTC with a register bit base */
+			case 0xa3: if (!dyn_bit_test_reg(0xa3)) goto illegalopcode; break;
+			case 0xab: if (!dyn_bit_test_reg(0xab)) goto illegalopcode; break;
+			/* BT/BTS/BTR/BTC with an immediate bit index */
+			case 0xba: if (!dyn_bit_test_imm()) goto illegalopcode; break;
+			case 0xb3: if (!dyn_bit_test_reg(0xb3)) goto illegalopcode; break;
+			case 0xbb: if (!dyn_bit_test_reg(0xbb)) goto illegalopcode; break;
 			/* PUSH/POP GS */
 			case 0xa8:dyn_push_seg(gs);break;
 			case 0xa9:dyn_pop_seg(gs);break;
@@ -2294,6 +2366,9 @@ restart_prefix:
 			gen_call_function((void *)&CPU_PUSHF,"%Rd%Id",DREG(TMPB),decode.big_op);
 			dyn_check_bool_exception(DREG(TMPB));
 			gen_releasereg(DREG(TMPB));
+			break;
+		case 0x9e:		//SAHF
+			dyn_sahf();
 			break;
 		case 0x9d:		//POPF
 			gen_releasereg(DREG(ESP));
