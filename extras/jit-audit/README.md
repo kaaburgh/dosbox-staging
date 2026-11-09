@@ -14,6 +14,7 @@ Findings, evidence tables and the Phase 2 plan are in
 | File | What it checks | Build |
 |---|---|---|
 | `pfprec.asm` → `PFPREC.COM` | What a guest `#PF` handler observes when an integer or x87 memory operand faults: pushed EIP (faulting instruction `I` vs start of the JIT block `B`), a register written just before the instruction (`R=ok/stale`), the loaded/stored value (`V`). Cases: integer `MOV`, `FLD/FADD/FILD/FIADD m32`, cross-page `FLD m32`, `FLD m64`, `FSTP m32`. | `nasm -f bin -o PFPREC.COM pfprec.asm` |
+| `bitops.asm` → `BITOPS.COM` | Semantics gate for instructions the dynamic core hands to the normal core in Quake (`BR_Opcode`): `BT/BTS/BTR/BTC` register, immediate, 16-bit and memory bit-string forms (offsets 37, 40, −1, −32), `SETcc`, `SAHF/LAHF`, and the GCC x87 compare idioms. CF is captured with `SBB`, not `SETcc`. Expected values from the SDM; prints `BITOPS deviations=00` on success. | `nasm -f bin -o BITOPS.COM bitops.asm` |
 | `jitsize.asm` → `JITSIZE.COM` | A maximum-length dynamic-core block made of x87 m32 loads (SIB + segment override); prints `JITSIZE_PASS`. With a block dump it measures per-block code growth against the 12 KiB `CACHE_MAXSIZE` reservation. `-DDIRTY` variant dirties all GPRs first. | `nasm -f bin -o JITSIZE.COM jitsize.asm` |
 
 Observed results (Release, GCC 14.2, `main` 27b1b7c):
