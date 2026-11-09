@@ -1,0 +1,36 @@
+{
+  "date_utc": "2026-11-09T09:02:25.104134+00:00",
+  "source_sha": "91774d582069d52f4d3bf04952cb6047dbdc073f",
+  "dosbox_sha256": "1fb0d1f17aac13b191f3f84f13b9fad042c6956b0180911a3257c6f54433cf44",
+  "quake_sha256": "7cdb244122cc607cc6f162524bfcac60f6d11d8ca2ff07473d6cd962311161fb",
+  "pak0_sha256": "35a9c55e5e5a284a159ad2a62e0e8def23d829561fe2f54eb402dbc0a9a946af",
+  "host": [
+    "Linux",
+    "[redacted]",
+    "6.18.57",
+    "#1 SMP Tue Oct 20 21:56:04 UTC 2026",
+    "x86_64"
+  ],
+  "cpu_model": "AMD EPYC 7763 64-Core Processor",
+  "visible_cpu_count": 3,
+  "affinity_cpus": 1,
+  "cgroup_cpu_max": "200000 100000",
+  "cgroup_cpuset": "0-2",
+  "warmups": 4,
+  "measured_repetitions": 24,
+  "quartet_label_order": [
+    "A",
+    "B",
+    "B",
+    "A"
+  ],
+  "A_equals_B": true,
+  "profiled": false,
+  "trace_compiled_out": true,
+  "config": "[dosbox]\nmemsize = 32\n[cpu]\ncore = dynamic\ncputype = pentium\ncpu_cycles = 3000\ncpu_cycles_protected = max\n[sdl]\noutput = texture\ntexture_renderer = software\n",
+  "fps_precision": "one decimal as logged by Quake",
+  "timedemo": "demo1",
+  "expected_frames": 969,
+  "video_backend": "SDL dummy / software texture; no X server",
+  "cgroup_cpu_stat_available": true
+}

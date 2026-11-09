@@ -1,0 +1,22 @@
+{
+  "A_median_fps": 107.1,
+  "B_median_fps": 112.0,
+  "quartet_geomean_B_vs_A_pct": 9.594245617500876,
+  "descriptive_bootstrap_95_pct": [
+    -3.273820584734039,
+    26.26445367796998
+  ],
+  "quartet_effects_pct": [
+    12.35,
+    -7.98,
+    43.44,
+    16.83,
+    -4.65,
+    52.32,
+    -7.53,
+    -10.56
+  ],
+  "frames": 969,
+  "measured_runs": 32,
+  "throttled": 10
+}

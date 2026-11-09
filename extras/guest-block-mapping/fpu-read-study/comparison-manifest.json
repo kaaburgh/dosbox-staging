@@ -1,0 +1,20 @@
+{
+  "quartets": [
+    "BAAB",
+    "BAAB",
+    "BAAB",
+    "ABBA",
+    "BAAB",
+    "ABBA",
+    "ABBA",
+    "ABBA"
+  ],
+  "warmups": "ABBA",
+  "A": "reference",
+  "B": "candidate",
+  "sha256": {
+    "A": "1fb0d1f17aac13b191f3f84f13b9fad042c6956b0180911a3257c6f54433cf44",
+    "B": "06c22959c2487e1ba4f5111d49e8eda15d6807841eb617a5a48dcbb5462b20bc"
+  },
+  "preplanned": "32 runs, descriptive only; A/A already demonstrated insufficient precision for 1\u20133%"
+}
