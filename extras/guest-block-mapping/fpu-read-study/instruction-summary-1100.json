@@ -1,0 +1,16 @@
+{
+  "interpretation": "linear-disassembly start offsets ONLY; not verified execution paths or guest instructions",
+  "total_selected_samples": 63,
+  "at_linear_instruction_start": 63,
+  "not_at_linear_instruction_start": 0,
+  "by_family": {
+    "arithmetic-or-bitwise": 1,
+    "branch": 7,
+    "call-site": 1,
+    "move-or-address": 29,
+    "predicate": 2,
+    "x87": 23
+  },
+  "unmatched_by_generation": {},
+  "caution": "Unmatched RIPs can be alternate entry points / embedded data / decode errors; do not silently assign them to a preceding instruction"
+}

@@ -1,0 +1,40 @@
+{
+  "main_thread_samples": 2119,
+  "all_jit_samples": 1190,
+  "other_jit_samples": 1135,
+  "non_jit_samples_unattributed": 929,
+  "selected_snapshot_samples": 55,
+  "selected_generations": 3,
+  "bucket_bytes": 16,
+  "interpretation": "sample counts, not executed call counts; no helper attribution outside JIT",
+  "warning": "Too few selected samples for hotspot selection; obtain longer/more runs",
+  "blocks": [
+    {
+      "generation": 5451,
+      "guest_cs": "0xa7",
+      "guest_eip": "0x306bd",
+      "native_bytes": 832,
+      "host_sha256": "d690eb1a05b2fd5b2b2391f5faacf58eaff790089fe33bef7b6a6fe8a7c79d1c",
+      "guest_complete": true,
+      "samples": 20
+    },
+    {
+      "generation": 5843,
+      "guest_cs": "0xa7",
+      "guest_eip": "0x10f4a",
+      "native_bytes": 832,
+      "host_sha256": "9a265846b100f224e92299b0f93b821f7b513b9be1484f38fdbeb0c8566b4c30",
+      "guest_complete": true,
+      "samples": 10
+    },
+    {
+      "generation": 5866,
+      "guest_cs": "0xa7",
+      "guest_eip": "0x112cc",
+      "native_bytes": 2504,
+      "host_sha256": "cae4b99ef3ca0084aa46b46be3fca2c9814d2a4218b736bfc091abc3301cdc8e",
+      "guest_complete": true,
+      "samples": 25
+    }
+  ]
+}
