@@ -1,0 +1,344 @@
+[
+  {
+    "eip": "0x000112cc",
+    "generation": 5864,
+    "kind": 0,
+    "return_offset": 77,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5286
+  },
+  {
+    "eip": "0x000112cc",
+    "generation": 5864,
+    "kind": 0,
+    "return_offset": 104,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5342
+  },
+  {
+    "eip": "0x000112cc",
+    "generation": 5864,
+    "kind": 0,
+    "return_offset": 158,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5252
+  },
+  {
+    "eip": "0x000112cc",
+    "generation": 5864,
+    "kind": 0,
+    "return_offset": 131,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5339
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 78,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5422
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 154,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5419
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 100,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5274
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 181,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5269
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 241,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5449
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 299,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5320
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 268,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5395
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 326,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5225
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 355,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5381
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 382,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5274
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 127,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5377
+  },
+  {
+    "eip": "0x00010f4a",
+    "generation": 5841,
+    "kind": 0,
+    "return_offset": 214,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5368
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 272,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5743
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 195,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5532
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 1,
+    "return_offset": 460,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5664
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 377,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5636
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 103,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5631
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 126,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5520
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 1,
+    "return_offset": 435,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5611
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 402,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5729
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 172,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5550
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 344,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5564
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 295,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5804
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 321,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5469
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 224,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5589
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 78,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5657
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 149,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5699
+  },
+  {
+    "eip": "0x000306bd",
+    "generation": 5449,
+    "kind": 0,
+    "return_offset": 246,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 5600
+  },
+  {
+    "eip": "0x00010572",
+    "generation": 3423,
+    "kind": 2,
+    "return_offset": 289,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 58462
+  },
+  {
+    "eip": "0x00010572",
+    "generation": 3423,
+    "kind": 3,
+    "return_offset": 177,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 2
+  },
+  {
+    "eip": "0x0004df18",
+    "generation": 1126,
+    "kind": 4,
+    "return_offset": 227,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 4443
+  },
+  {
+    "eip": "0x0004df18",
+    "generation": 1126,
+    "kind": 4,
+    "return_offset": 89,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 4372
+  },
+  {
+    "eip": "0x0004df18",
+    "generation": 1126,
+    "kind": 4,
+    "return_offset": 156,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 4456
+  },
+  {
+    "eip": "0x0004df18",
+    "generation": 1126,
+    "kind": 4,
+    "return_offset": 577,
+    "previous_mnemonic": "call",
+    "return_on_instruction_start": true,
+    "records": 4431
+  }
+]

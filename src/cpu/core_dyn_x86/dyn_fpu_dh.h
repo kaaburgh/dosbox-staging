@@ -12,10 +12,16 @@ static void FPU_FST_16(PhysPt addr) {
 }
 
 static void FPU_FLD_32(PhysPt addr) {
+#ifdef DOSBOX_JIT_BLOCK_TRACE
+	JitHelperProbe::Sample(0, reinterpret_cast<uintptr_t>(__builtin_return_address(0)), addr);
+#endif
 	dyn_dh_fpu.temp.m1 = mem_readd(addr);
 }
 
 static void FPU_FST_32(PhysPt addr) {
+#ifdef DOSBOX_JIT_BLOCK_TRACE
+	JitHelperProbe::Sample(1, reinterpret_cast<uintptr_t>(__builtin_return_address(0)), addr);
+#endif
 	mem_writed(addr,dyn_dh_fpu.temp.m1);
 }
 

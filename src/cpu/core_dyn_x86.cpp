@@ -142,6 +142,7 @@ static struct {
 #ifdef DOSBOX_JIT_BLOCK_TRACE
 #include "jit_block_trace.h"
 #include "jit_selected_snapshot.h"
+#include "jit_helper_probe.h"
 #endif
 
 static struct {
