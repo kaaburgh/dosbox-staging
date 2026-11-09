@@ -22,7 +22,11 @@ from pathlib import Path
 NAMES = ['pushfq_exec', 'popfq_exec', 'push_helper_calls', 'pop_helper_calls',
          'fpu_fld32_calls', 'fpu_fst32_calls', 'fpu_fld64_calls', 'dispatch_loop',
          'makecodepage_calls', 'run_block_from_dispatcher', 'normal_core_runs',
-         'blocks_created', 'read_word_slow_path', 'write_word_slow_path']
+         'blocks_created', 'read_word_slow_path', 'write_word_slow_path',
+         'push_fast_path_eligible', 'pop_fast_path_eligible', 'dispatch_same_code_page',
+         'fallback_no_code_page', 'fallback_invalidation_map', 'fallback_smc',
+         'fallback_opcode', 'fallback_trap']
+HIST = 512
 FPS_RE = re.compile(rb'(\d+)\s+frames\s+([\d.]+)\s+seconds\s+([\d.]+)\s+fps', re.I)
 
 
@@ -71,13 +75,20 @@ def main():
                 os.killpg(proc.pid, signal.SIGKILL)
             proc.wait()
         raw = counters.read_bytes()
-    size = 8 * len(NAMES)
-    snaps = [struct.unpack_from(f'<{len(NAMES)}Q', raw, i) for i in range(0, len(raw) - size + 1, size)]
+    size = 8 * (len(NAMES) + HIST)
+    snaps = [struct.unpack_from(f'<{len(NAMES) + HIST}Q', raw, i)
+             for i in range(0, len(raw) - size + 1, size)]
     if len(snaps) < 2 or result is None:
         raise SystemExit(f'incomplete: {len(snaps)} snapshots, result={result}')
     delta = {n: snaps[1][i] - snaps[0][i] for i, n in enumerate(NAMES)}
+    hist = {}
+    for j in range(HIST):
+        d = snaps[1][len(NAMES) + j] - snaps[0][len(NAMES) + j]
+        if d:
+            hist[(f'0F {j - 256:02X}' if j >= 256 else f'{j:02X}')] = d
     out = {'frames': int(result[0]), 'guest_seconds': float(result[1]), 'fps': float(result[2]),
            'window_counts': delta,
+           'br_opcode_fallback_opcodes': dict(sorted(hist.items(), key=lambda kv: -kv[1])),
            'per_frame': {n: round(v / int(result[0]), 1) for n, v in delta.items()}}
     print(json.dumps(out, indent=1))
 

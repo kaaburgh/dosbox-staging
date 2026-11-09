@@ -33,16 +33,28 @@ enum Id {
 	CreateBlock,
 	ReadSlowPath,   // dyn_read_word TLB-miss helper calls (excl. page crossing)
 	WriteSlowPath,  // dyn_write_word TLB-miss helper calls (excl. page crossing)
+	PushFastEligible,   // push helper calls whose access is in-page with a direct TLB pointer
+	PopFastEligible,    // pop helper calls whose access is in-page with a direct TLB pointer
+	DispatchSamePage,   // dispatcher entries whose code page equals the previous entry's
+	FallbackNoCodePage, // normal core because MakeCodePage gave no code page
+	FallbackInvalidationMap, // normal core because the byte was modified >= 4 times
+	FallbackSmc,        // BR_SMCBlock
+	FallbackOpcode,     // BR_Opcode (instruction not handled by the dynamic core)
+	FallbackTrap,       // single-step trap run
 	Count
 };
 
 inline uint64_t counters[Count] = {};
+// Opcode histogram for BR_Opcode fallbacks: [0..255] one-byte opcodes after
+// prefixes, [256..511] 0F-prefixed opcodes.
+inline uint64_t opcode_hist[512] = {};
 inline int fd = -1;
 
 inline void Snapshot(int)
 {
 	if (fd >= 0) {
 		[[maybe_unused]] auto r = write(fd, counters, sizeof(counters));
+		[[maybe_unused]] auto q = write(fd, opcode_hist, sizeof(opcode_hist));
 	}
 }
 
