@@ -130,6 +130,45 @@ an optimization or an upstream change. Validate after local execution:
 Do not claim the real wraparound path passed unless these four
 conditions are actually observed.
 
+## Bit-test opcode regression probe
+
+`bit_test_semantics.asm` is a real-mode DOS COM program that executes 16
+cases of the bit-test instruction family (`BT`, `BTS`, `BTR`, `BTC` with a
+register and with an immediate bit index) on a 32-bit operand. It captures
+the carry flag and the resulting operand, compares both against
+expectations taken from the Intel SDM, and writes the raw results to
+`BTOUT.BIN` through `int 21h`. Byte 1 of that file is the number of
+deviations the program counted itself.
+
+```sh
+nasm -f bin extras/guest-block-mapping/bit_test_semantics.asm -o BITSEM.COM
+python3 extras/guest-block-mapping/run_bit_test_semantics.py \
+    --dosbox /path/to/dosbox --out /tmp/bit-test
+```
+
+The runner executes the program on `cpu core = normal` and on
+`cpu core = dynamic` and compares the two outputs byte for byte. On the
+current sources both cores produce the identical SHA-256
+`640dffd87f299bc437c43c9ae07825deabd04057f295fc3a65ae13fa1580fd37` with
+**0 deviations out of 16**.
+
+This probe exists because the dynamic core does not implement the bit-test
+opcodes: `src/cpu/core_dyn_x86/decoder.h` implements 88 of the 256 two-byte
+sub-opcodes in its `case 0x0f:` branch, and `0F A3`, `0F AB`, `0F B3`,
+`0F BB` and `0F BA /4../7` are absent. An unhandled opcode reaches the
+decoder's `illegalopcode:` label, which ends the block with
+`gen_return(BR_Opcode)`; the dispatcher then runs that single instruction
+through `CPU_Core_Normal_Run()`.
+
+The trace-enabled run makes this visible from the guest side: the dynamic
+core emits only three blocks for the whole program and the last one ends
+exactly at the first bit-test instruction. The rest of the program is
+executed by the interpreter, and the program still completes correctly.
+
+See [BIT_TEST_DECODER_GAP.md](BIT_TEST_DECODER_GAP.md) for the full
+analysis and for the acceptance criteria of a possible follow-up
+implementation.
+
 ## Verified correctness (local execution)
 
 - `SMC.COM`: self-modifying arithmetic and JIT invalidation, with guest
