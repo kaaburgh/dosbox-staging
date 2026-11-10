@@ -1027,6 +1027,27 @@ static void dyn_dop_gbeb(DualOps op) {
 	}
 }
 
+// BT/BTS/BTR/BTC Ev,Gv with a register destination. Returns false (after consuming
+// the modrm byte only) if the instruction must be left to the normal core.
+static bool dyn_bit_test_reg(int op) {
+	dyn_get_modrm();
+	if (decode.modrm.mod != 3) return false;
+	gen_bit_test(op, decode.big_op, &DynRegs[decode.modrm.rm], &DynRegs[decode.modrm.reg], 0);
+	return true;
+}
+
+static void dyn_setcc(int cc) {
+	dyn_get_modrm();
+	if (decode.modrm.mod < 3) {
+		dyn_fill_ea();
+		gen_setcc(cc, DREG(TMPB), 0);
+		dyn_write_byte_release(DREG(EA), DREG(TMPB), false);
+		gen_releasereg(DREG(TMPB));
+	} else {
+		gen_setcc(cc, &DynRegs[decode.modrm.rm & 3], decode.modrm.rm & 4);
+	}
+}
+
 static void dyn_mov_ebib(void) {
 	dyn_get_modrm();
 	if (decode.modrm.mod<3) {
@@ -1996,6 +2017,23 @@ restart_prefix:
 				dyn_branched_exit((BranchTypes)(dual_code&0xf),
 					decode.big_op ? (int32_t)decode_fetchd() : (int16_t)decode_fetchw());	
 				goto finish_block;
+#if !(C_DEBUGGER && C_HEAVY_DEBUGGER)
+			/* SETcc Eb */
+			case 0x90:case 0x91:case 0x92:case 0x93:case 0x94:case 0x95:case 0x96:case 0x97:
+			case 0x98:case 0x99:case 0x9a:case 0x9b:case 0x9c:case 0x9d:case 0x9e:case 0x9f:
+				dyn_setcc(dual_code&0xf);
+				break;
+			/* BT/BTS/BTR/BTC Ev,Gv (register destination only) */
+			case 0xa3:case 0xab:case 0xb3:case 0xbb:
+				if (!dyn_bit_test_reg((dual_code-0xa3)>>3)) goto illegalopcode;
+				break;
+			/* BT/BTS/BTR/BTC Ev,Ib (register destination only) */
+			case 0xba:
+				dyn_get_modrm();
+				if (decode.modrm.mod != 3 || decode.modrm.reg < 4) goto illegalopcode;
+				gen_bit_test(decode.modrm.reg-4,decode.big_op,&DynRegs[decode.modrm.rm],nullptr,decode_fetchb());
+				break;
+#endif
 			/* PUSH/POP FS */
 			case 0xa0:dyn_push_seg(fs);break;
 			case 0xa1:dyn_pop_seg(fs);break;
@@ -2282,6 +2320,14 @@ restart_prefix:
 			break;
 		/* CALL FAR Ip */
 		case 0x9a:dyn_call_far_imm();goto finish_block;
+#if !(C_DEBUGGER && C_HEAVY_DEBUGGER)
+		case 0x9e:		//SAHF
+		case 0x9f:		//LAHF
+			if (!host_has_lahf_sahf) goto illegalopcode;
+			gen_sahf_lahf(opcode==0x9f,DREG(EAX));
+			break;
+#endif
+
 		case 0x9c:		//PUSHF
 			gen_protectflags();
 			gen_releasereg(DREG(ESP));
