@@ -167,7 +167,8 @@ static void dh_fpu_load32_inline() {
 	const uint8_t *nomap = gen_create_branch(BR_Z);
 	opcode(tmp).setea(tmp, gensrc->index).Emit8(0x8B); // mov tmpd, [tmp+src]
 	opcode(tmp).setabsaddr(&dyn_dh_fpu.temp.m1).Emit8(0x89); // mov [m1], tmpd
-	const uint8_t *jmp_loc = gen_create_short_jump();
+	// the helper call below can be longer than a short jump reaches
+	const uint8_t *jmp_loc = gen_create_jump();
 
 	gen_fill_branch(page_brk);
 	gen_fill_branch(nomap);
@@ -177,7 +178,7 @@ static void dh_fpu_load32_inline() {
 	}
 	gen_call_ptr((void*)&FPU_FLD_32);
 	dyn_synchstate(&callstate);
-	gen_fill_short_jump(jmp_loc);
+	gen_fill_branch_long(jmp_loc);
 #endif
 }
 
