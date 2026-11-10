@@ -55,6 +55,8 @@ static const int reg_args[4] = {X64_REG_RDI, X64_REG_RSI, X64_REG_RDX, X64_REG_R
 
 static struct {
 	bool flagsactive;
+	// SAHF is usable in 64-bit mode (CPUID.80000001H:ECX bit 0)
+	bool has_sahf;
 	Bitu last_used;
 	GenReg * regs[X64_REGS];
 } x64gen;
@@ -466,11 +468,32 @@ static void gen_synchreg(DynReg * dnew,DynReg * dsynch) {
 	}
 }
 
+// Loads the guest flags saved by gen_protectflags() into the host flags and
+// leaves the saved image on the stack. Only OF, SF, ZF, AF, PF and CF carry
+// guest state, so the microcoded POPFQ is not needed: ADD AL sets OF from bit
+// 11 of the image, then SAHF sets the other five and leaves OF alone. RAX is
+// kept in the unused stack slot below the image.
+static void gen_load_saved_flags(void) {
+	const bool keep_rax = x64gen.regs[X64_REG_RAX]->dynreg != nullptr;
+	if (keep_rax) opcode(0).set64().setea(4,-1,0,CALLSTACK-8).Emit8(0x89); // mov [rsp+0/32], rax
+	opcode(0).setea(4,-1,0,CALLSTACK+1).Emit8(0x8A); // mov al, [rsp+9/41]
+	cache_addw(0x0824);		// and al, 8
+	cache_addw(0x7804);		// add al, 0x78
+	opcode(4).setea(4,-1,0,CALLSTACK).Emit8(0x8A); // mov ah, [rsp+8/40]
+	cache_addb(0x9e);		// SAHF
+	if (keep_rax) opcode(0).set64().setea(4,-1,0,CALLSTACK-8).Emit8(0x8B); // mov rax, [rsp+0/32]
+}
+
 static void gen_needflags(void) {
 	if (!x64gen.flagsactive) {
 		x64gen.flagsactive=true;
-		opcode(0).set64().setrm(4).setimm(CALLSTACK,1).Emit8(0x83); // add rsp,8/40
-		cache_addb(0x9d);		//POPFQ
+		if (x64gen.has_sahf) {
+			gen_load_saved_flags();
+			opcode(4).set64().setea(4,-1,0,CALLSTACK+8).Emit8(0x8D); // lea rsp, [rsp+16/48]
+		} else {
+			opcode(0).set64().setrm(4).setimm(CALLSTACK,1).Emit8(0x83); // add rsp,8/40
+			cache_addb(0x9d);		//POPFQ
+		}
 	}
 }
 
@@ -479,6 +502,17 @@ static void gen_protectflags(void) {
 		x64gen.flagsactive=false;
 		cache_addb(0x9c);		//PUSHFQ
 		opcode(4).set64().setea(4,-1,0,-(CALLSTACK)).Emit8(0x8D); // lea rsp, [rsp-8/40]
+	}
+}
+
+// Makes the guest flags valid in the host flags while they stay saved on the
+// stack, for a host Jcc or SBB that follows flag-neutral code.
+static void gen_needflags_protected(void) {
+	if (x64gen.flagsactive || !x64gen.has_sahf) {
+		gen_needflags();
+		gen_protectflags();
+	} else {
+		gen_load_saved_flags();
 	}
 }
 
@@ -1303,7 +1337,19 @@ static void gen_return_fast(BlockReturn retcode,bool ret_exception=false) {
 	opcode(4).setea(4,-1,0,CALLSTACK-8).Emit8(0xFF); // jmp [rsp+CALLSTACK]
 }
 
+static bool host_has_sahf() {
+#if defined(_MSC_VER)
+	int regs[4] = {};
+	__cpuid(regs, 0x80000001);
+	return (regs[2] & 1) != 0;
+#else
+	unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
+	return __get_cpuid(0x80000001, &eax, &ebx, &ecx, &edx) && (ecx & 1) != 0;
+#endif
+}
+
 static void gen_init(void) {
+	x64gen.has_sahf = host_has_sahf();
 	x64gen.regs[X64_REG_RAX]=new GenReg(0);
 	x64gen.regs[X64_REG_RCX]=new GenReg(1);
 	x64gen.regs[X64_REG_RDX]=new GenReg(2);
