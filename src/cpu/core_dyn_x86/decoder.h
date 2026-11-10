@@ -721,13 +721,8 @@ static void dyn_push(DynReg * dynreg) {
 	gen_dop_word_var(DOP_AND,true,DREG(NEWESP),&cpu.stack.notmask);
 	gen_dop_word(DOP_OR,true,DREG(NEWESP),DREG(STACK));
 	gen_dop_word(DOP_ADD,true,DREG(STACK),DREG(SS));
-	if (decode.big_op) {
-		gen_call_function((void *)&mem_writed_checked,"%Drd%Dd",DREG(STACK),dynreg);
-	} else {
-		//Can just push the whole 32-bit word as operand
-		gen_call_function((void *)&mem_writew_checked,"%Drd%Dd",DREG(STACK),dynreg);
-	}
-	dyn_check_bool_exception_al();
+	// Inline TLB fast path; exception check is part of dyn_write_word
+	dyn_write_word_release(DREG(STACK),dynreg,decode.big_op);
 	/* everything was ok, change register now */
 	gen_dop_word(DOP_MOV,true,DREG(ESP),DREG(NEWESP));
 	gen_releasereg(DREG(NEWESP));
@@ -739,13 +734,8 @@ static void dyn_pop(DynReg * dynreg,bool checked=true) {
 	gen_dop_word_var(DOP_AND,true,DREG(STACK),&cpu.stack.mask);
 	gen_dop_word(DOP_ADD,true,DREG(STACK),DREG(SS));
 	if (checked) {
-		if (decode.big_op) {
-			gen_call_function((void *)&mem_readd_checked,"%Drd%Ip",DREG(STACK),&core_dyn.readdata);
-		} else {
-			gen_call_function((void *)&mem_readw_checked,"%Drd%Ip",DREG(STACK),&core_dyn.readdata);
-		}
-		dyn_check_bool_exception_al();
-		gen_mov_host(&core_dyn.readdata,dynreg,decode.big_op?4:2);
+		// Inline TLB fast path; exception check is part of dyn_read_word
+		dyn_read_word_release(DREG(STACK),dynreg,decode.big_op);
 	} else {
 		if (decode.big_op) {
 			gen_call_function((void*)&mem_readd<MemOpMode::WithBreakpoints>,
