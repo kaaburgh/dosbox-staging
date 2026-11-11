@@ -1053,38 +1053,47 @@ static void gen_dshift_cl(bool dword,bool left,DynReg * dr1,DynReg * dr2,DynReg 
 // The host instruction leaves OF/SF/AF/PF undefined, but the guest only
 // changes CF, so the host flags are discarded: the saved guest flags image on
 // the stack is updated with the new CF only.
-static void gen_bit_test(int op,bool dword,DynReg * dr1,DynReg * dr2,uint8_t imm) {
+static void gen_bit_test(int op, bool dword, DynReg* dr1, DynReg* dr2, uint8_t imm)
+{
 	gen_protectflags();
-	GenReg *gr2 = dr2 ? FindDynReg(dr2) : nullptr;
-	GenReg *gr1 = FindDynReg(dr1);
-	opcode(4,true,1).setea(4,-1,0,CALLSTACK).setimm(0xFE,1).Emit8(0x80); // and byte [rsp+8/40],0xFE
+	GenReg* gr2 = dr2 ? FindDynReg(dr2) : nullptr;
+	GenReg* gr1 = FindDynReg(dr1);
+	opcode(4, true, 1).setea(4, -1, 0, CALLSTACK).setimm(0xFE, 1).Emit8(0x80); // and byte [rsp+8/40],0xFE
 	if (gr2) {
 		// bt/bts/btr/btc r/m, r
-		opcode(gr2->index,dword).setrm(gr1->index).Emit16(0x0F | ((0xA3 + 8 * op) << 8));
+		opcode(gr2->index, dword)
+		        .setrm(gr1->index)
+		        .Emit16(0x0F | ((0xA3 + 8 * op) << 8));
 	} else {
 		// bt/bts/btr/btc r/m, imm8
-		opcode(4 + op,dword).setrm(gr1->index).setimm(imm,1).Emit16(0xBA0F);
+		opcode(4 + op, dword).setrm(gr1->index).setimm(imm, 1).Emit16(0xBA0F);
 	}
-	opcode(2,true,1).setea(4,-1,0,CALLSTACK).setimm(0,1).Emit8(0x80); // adc byte [rsp+8/40],0
-	if (op) dr1->flags|=DYNFLG_CHANGED;
+	opcode(2, true, 1).setea(4, -1, 0, CALLSTACK).setimm(0, 1).Emit8(0x80); // adc byte [rsp+8/40],0
+	if (op) {
+		dr1->flags |= DYNFLG_CHANGED;
+	}
 }
 
 // SETcc on the low or high byte of dr1 (di: 0 or 4); cc is the x86 condition code
-static void gen_setcc(int cc,DynReg * dr1,Bitu di) {
-	GenReg *gr1 = FindDynReg(dr1);
+static void gen_setcc(int cc, DynReg* dr1, Bitu di)
+{
+	GenReg* gr1 = FindDynReg(dr1);
 	gen_needflags();
-	opcode(0).setrm(gr1->index,di).Emit16(((0x90 + cc) << 8) | 0x0F);
-	dr1->flags|=DYNFLG_CHANGED;
+	opcode(0).setrm(gr1->index, di).Emit16(((0x90 + cc) << 8) | 0x0F);
+	dr1->flags |= DYNFLG_CHANGED;
 }
 
 static bool host_has_lahf_sahf = false;
 
 // SAHF/LAHF with the guest EAX in the host RAX
-static void gen_sahf_lahf(bool lahf,DynReg * dyn_ax) {
-	ForceDynReg(x64gen.regs[X64_REG_RAX],dyn_ax);
+static void gen_sahf_lahf(bool lahf, DynReg* dyn_ax)
+{
+	ForceDynReg(x64gen.regs[X64_REG_RAX], dyn_ax);
 	gen_needflags();
 	cache_addb(lahf ? 0x9F : 0x9E);
-	if (lahf) dyn_ax->flags|=DYNFLG_CHANGED;
+	if (lahf) {
+		dyn_ax->flags |= DYNFLG_CHANGED;
+	}
 }
 
 static void gen_call_ptr(void *func=nullptr, uint8_t ptr=0) {
