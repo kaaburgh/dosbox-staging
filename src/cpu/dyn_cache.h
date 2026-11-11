@@ -54,6 +54,9 @@ public:
 		toblock->link[index].from = this; // remember who links me
 	}
 
+	// undo LinkTo(), pointing the link back at the standard linkcode
+	void Unlink(Bitu index);
+
 	struct Page {
 		uint16_t start = 0;
 		uint16_t end   = 0; // where in the page is the original code
@@ -98,6 +101,14 @@ public:
 		                       // to this block
 	} link[2] = {};                // maximum two links (conditional jumps)
 
+	// Where the last near return taken from this block went: the linear
+	// address and the TLB read pointer of its page at that time. Blocks
+	// ending in a near return use link[0] for that target.
+	struct ReturnTarget {
+		PhysPt linear    = 0;
+		HostPt read_base = {};
+	} return_target = {};
+
 	CacheBlock* crossblock = {};
 };
 
@@ -105,6 +116,8 @@ static_assert(std::is_standard_layout_v<CacheBlock::Page>, "standard-layout is r
 static_assert(std::is_standard_layout_v<CacheBlock::Cache>, "standard-layout is required for offsetof");
 static_assert(std::is_standard_layout_v<CacheBlock::Hash>, "standard-layout is required for offsetof");
 static_assert(std::is_standard_layout_v<CacheBlock::Link>, "standard-layout is required for offsetof");
+static_assert(std::is_standard_layout_v<CacheBlock::ReturnTarget>,
+              "standard-layout is required for offsetof");
 static_assert(std::is_standard_layout_v<CacheBlock>, "standard-layout is required for offsetof");
 
 static struct {
@@ -641,6 +654,26 @@ inline void CacheBlock::Cache::AddDwordToWriteMaskAt(const size_t page_index)
 	add_to_unaligned_uint32(wmapmask + map_offset, 0x01010101);
 }
 
+void CacheBlock::Unlink(const Bitu index)
+{
+	if (link[index].to == &link_blocks[index]) {
+		return;
+	}
+	// find this block in the list of blocks that link to the target
+	CacheBlock** wherelink = &link[index].to->link[index].from;
+	while (*wherelink != this && *wherelink) {
+		wherelink = &(*wherelink)->link[index].next;
+	}
+	// now remove the link
+	if (*wherelink) {
+		*wherelink = (*wherelink)->link[index].next;
+	} else {
+		LOG(LOG_CPU, LOG_ERROR)("Cache anomaly. please investigate");
+	}
+	link[index].next = nullptr;
+	link[index].to   = &link_blocks[index];
+}
+
 void CacheBlock::Clear()
 {
 	Bitu ind;
@@ -658,17 +691,7 @@ void CacheBlock::Clear()
 			fromlink=nextlink;
 		}
 		if (link[ind].to!=&link_blocks[ind]) {
-			// not linked to the standard linkcode, find the block
-			// that links to this block
-			CacheBlock **wherelink = &link[ind].to->link[ind].from;
-			while (*wherelink != this && *wherelink) {
-				wherelink = &(*wherelink)->link[ind].next;
-			}
-			// now remove the link
-			if (*wherelink)
-				*wherelink = (*wherelink)->link[ind].next;
-			else
-				LOG(LOG_CPU, LOG_ERROR)("Cache anomaly. please investigate");
+			Unlink(ind);
 		}
 	} else {
 		cache_add_unused_block(this);

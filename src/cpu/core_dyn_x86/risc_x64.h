@@ -1287,6 +1287,42 @@ static void gen_return(BlockReturn retcode) {
 	opcode(4).setea(4,-1,0,CALLSTACK-8).Emit8(0xFF); // jmp [rsp+CALLSTACK-8]
 }
 
+// Ends a block whose near return has stored the target in reg_eip: jumps
+// straight to the block the previous return from here went to if the guest
+// returns to the same linear address and that page is still mapped to the
+// same host memory, which is what the dispatcher would establish again.
+// Falls through otherwise. Uses RAX and RCX like gen_return().
+static void gen_jmp_return_target(CacheBlock* block)
+{
+	if (x64gen.flagsactive) {
+		IllegalOption("gen_jmp_return_target");
+	}
+	// ecx = reg_eip + Segs.phys[cs]
+	opcode(1).setabsaddr(&reg_eip).Emit8(0x8B);
+	opcode(1).setabsaddr(&Segs.phys[cs]).Emit8(0x03);
+	opcode(0).set64().setimm((Bitu)block, 8).Emit8Reg(0xB8); // mov rax, block
+	// cmp ecx, [rax+return_target.linear]
+	opcode(1).setea(0, -1, 0, offsetof(CacheBlock, return_target.linear)).Emit8(0x3B);
+	const uint8_t* other_target = gen_create_branch(BR_NZ);
+	opcode(5).setrm(1).setimm(12, 1).Emit8(0xC1); // shr ecx, 12
+	// mov rcx, [8*rcx+paging.tlb.read(rbp)]
+	opcode(1)
+	        .set64()
+	        .setea(5, 1, 3, (Bits)PAGING_GetReadBaseAddress() - (Bits)&cpu_regs)
+	        .Emit8(0x8B);
+	// cmp rcx, [rax+return_target.read_base]
+	opcode(1)
+	        .set64()
+	        .setea(0, -1, 0, offsetof(CacheBlock, return_target.read_base))
+	        .Emit8(0x3B);
+	const uint8_t* other_mapping = gen_create_branch(BR_NZ);
+	// mov rax, [rax+link[0].to]
+	opcode(0).set64().setea(0, -1, 0, offsetof(CacheBlock, link[0].to)).Emit8(0x8B);
+	opcode(4).setea(0, -1, 0, offsetof(CacheBlock, cache.start)).Emit8(0xFF); // jmp [rax+cache.start]
+	gen_fill_branch(other_target);
+	gen_fill_branch(other_mapping);
+}
+
 static void gen_return_fast(BlockReturn retcode,bool ret_exception=false) {
 	if (x64gen.flagsactive) {
 		IllegalOption("gen_return_fast");

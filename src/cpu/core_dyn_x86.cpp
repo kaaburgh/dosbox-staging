@@ -89,15 +89,17 @@ enum BranchTypes {
 	BR_L,BR_NL,BR_LE,BR_NLE
 };
 
-
 enum BlockReturn {
-	BR_Normal=0,
+	BR_Normal = 0,
 	BR_Cycles,
-	BR_Link1,BR_Link2,
+	BR_Link1,
+	BR_Link2,
 	BR_Opcode,
 	BR_Iret,
 	BR_Callback,
-	BR_SMCBlock
+	BR_SMCBlock,
+	// BR_Normal from a near return that missed its linked return target
+	BR_Return
 };
 
 #define SMC_CURRENT_BLOCK	0xffff
@@ -292,9 +294,14 @@ Bits CPU_Core_Dyn_X86_Run() noexcept
 	HostFpuToDhCopier host_fpu_to_dh_copier;
 #	endif
 
+	// The block whose near return got us here, if it can link its target
+	CacheBlock* return_source = nullptr;
+
 	/* Determine the linear address of CS:EIP */
 restart_core:
 	PhysPt ip_point=SegPhys(cs)+reg_eip;
+	CacheBlock* const returned_from = return_source;
+	return_source                   = nullptr;
 #if C_DEBUGGER
 #if C_HEAVY_DEBUGGER
 		if (DEBUG_HeavyIsBreakpoint()) return debugCallback;
@@ -326,6 +333,14 @@ restart_core:
 			CPU_CycleLeft+=old_cycles;
 			return nc_retcode;
 		}
+	} else if (returned_from) {
+		// Finding the block means MakeCodePage() left the cache alone,
+		// so the returning block is still valid.
+		if (const HostPt read_base = get_tlb_read(ip_point)) {
+			returned_from->Unlink(0);
+			returned_from->LinkTo(0, block);
+			returned_from->return_target = {ip_point, read_base};
+		}
 	}
 run_block:
 	cache.block.running=nullptr;
@@ -350,6 +365,7 @@ run_block:
 		}
 		cpudecoder=CPU_Core_Dyn_X86_Trap_Run;
 		return CBRET_NONE;
+	case BR_Return: return_source = cache.block.running; [[fallthrough]];
 	case BR_Normal:
 		/* Maybe check if we staying in the same page? */
 #if C_DEBUGGER

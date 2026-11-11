@@ -1711,7 +1711,13 @@ static void dyn_ret_near(Bitu bytes) {
 	dyn_pop(DREG(EIP));
 	if (bytes) gen_dop_word_imm(DOP_ADD,true,DREG(ESP),bytes);
 	dyn_save_critical_regs();
+#if C_DEBUGGER && C_HEAVY_DEBUGGER
+	// the dispatcher checks for breakpoints after every return
 	gen_return(BR_Normal);
+#else
+	gen_jmp_return_target(decode.block);
+	gen_return(BR_Return);
+#endif
 	dyn_closeblock();
 }
 
