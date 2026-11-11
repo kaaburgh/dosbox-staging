@@ -13,13 +13,32 @@ import json
 import math
 import random
 import statistics
+import sys
 from pathlib import Path
 
 
 def blocks_of(path):
     rows = [r for r in csv.DictReader(open(path)) if r['warmup'] == '0']
     labels = sorted({r['label'] for r in rows})
-    return [rows[i:i + len(labels)] for i in range(0, len(rows), len(labels))], labels
+    blocks = [rows[i:i + len(labels)] for i in range(0, len(rows), len(labels))]
+    # The comparison assumes identical guest work per label. Drop blocks in
+    # which a run's guest result differs from that label's usual result.
+    usual = {}
+    for lab in labels:
+        results = [(r['frames'], r['guest_seconds'], r['fps']) for r in rows
+                   if r['label'] == lab]
+        usual[lab] = max(set(results), key=results.count)
+    kept = []
+    for b in blocks:
+        odd = [r for r in b if (r['frames'], r['guest_seconds'], r['fps']) != usual[r['label']]]
+        if odd:
+            for r in odd:
+                print(f"{path}: dropping block with run {r['number']} ({r['label']}: "
+                      f"{r['frames']} frames, {r['guest_seconds']} s, {r['fps']} fps)",
+                      file=sys.stderr)
+        else:
+            kept.append(b)
+    return kept, labels
 
 
 def analyse(blocks, labels, refs, metric, rng, boot=20000):
