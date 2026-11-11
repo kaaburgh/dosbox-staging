@@ -138,37 +138,41 @@ static void dh_fpu_mem(uint8_t inst, Bitu reg=decode.modrm.reg, void* mem=&dyn_d
 // Loads the 32-bit memory operand at EA into dyn_dh_fpu.temp.m1 and releases
 // EA. The in-page TLB hit case is inlined (same condition as the first branch
 // of mem_readd_inline); everything else calls FPU_FLD_32 as before.
-static void dh_fpu_load32_inline() {
+static void dh_fpu_load32_inline()
+{
 #if C_DEBUGGER && C_HEAVY_DEBUGGER
 	// the inline path would bypass DEBUG_UpdateMemoryReadBreakpoints
-	gen_call_function((void*)&FPU_FLD_32,"%Drd",DREG(EA));
+	gen_call_function((void*)&FPU_FLD_32, "%Drd", DREG(EA));
 #else
 	DynState callstate;
 
 	gen_protectflags();
-	GenReg *gensrc = FindDynReg(DREG(EA));
+	GenReg* gensrc = FindDynReg(DREG(EA));
 	gen_releasereg(DREG(EA));
 	gensrc->notusable = true;
 	const uint8_t tmp = GetNextReg();
 	gensrc->notusable = false;
 	dyn_savestate(&callstate);
 
-	opcode(tmp).set64().setea(gensrc->index, -1, 0, 3).Emit8(0x8D); // lea tmp, [src+3]
-	opcode(4).set64().setimm(~0xFFF,4).setrm(tmp).Emit8(0x81); // and tmp, ~0xFFF
+	opcode(tmp).set64().setea(gensrc->index, -1, 0, 3).Emit8(0x8D); // lea
+	                                                                // tmp,
+	                                                                // [src+3]
+	opcode(4).set64().setimm(~0xFFF, 4).setrm(tmp).Emit8(0x81); // and tmp,
+	                                                            // ~0xFFF
 	opcode(gensrc->index).set64().setrm(tmp).Emit8(0x39); // cmp tmp, src
-	const uint8_t *page_brk = gen_create_branch(BR_NBE);
-	opcode(5).setrm(tmp).setimm(12,1).Emit8(0xC1); // shr tmpd, 12
+	const uint8_t* page_brk = gen_create_branch(BR_NBE);
+	opcode(5).setrm(tmp).setimm(12, 1).Emit8(0xC1); // shr tmpd, 12
 	// mov tmp, [8*tmp+paging.tlb.read(rbp)]
 	opcode(tmp)
 	        .set64()
 	        .setea(5, tmp, 3, (Bits)PAGING_GetReadBaseAddress() - (Bits)&cpu_regs)
 	        .Emit8(0x8B);
 	opcode(tmp).set64().setrm(tmp).Emit8(0x85); // test tmp, tmp
-	const uint8_t *nomap = gen_create_branch(BR_Z);
+	const uint8_t* nomap = gen_create_branch(BR_Z);
 	opcode(tmp).setea(tmp, gensrc->index).Emit8(0x8B); // mov tmpd, [tmp+src]
 	opcode(tmp).setabsaddr(&dyn_dh_fpu.temp.m1).Emit8(0x89); // mov [m1], tmpd
 	// the helper call below can be longer than a short jump reaches
-	const uint8_t *jmp_loc = gen_create_jump();
+	const uint8_t* jmp_loc = gen_create_jump();
 
 	gen_fill_branch(page_brk);
 	gen_fill_branch(nomap);
@@ -244,7 +248,7 @@ static void dh_fpu_esc2(){
 		cache_addb(0xda);
 		cache_addb(decode.modrm.val);
 	} else {
-		dyn_fill_ea(); 
+		dyn_fill_ea();
 		dh_fpu_load32_inline();
 		dh_fpu_mem(0xda);
 	}
