@@ -89,11 +89,11 @@ enum BranchTypes {
 	BR_L,BR_NL,BR_LE,BR_NLE
 };
 
-
 enum BlockReturn {
-	BR_Normal=0,
+	BR_Normal = 0,
 	BR_Cycles,
-	BR_Link1,BR_Link2,
+	BR_Link1,
+	BR_Link2,
 	BR_Opcode,
 	BR_Iret,
 	BR_Callback,
@@ -301,7 +301,7 @@ Bits CPU_Core_Dyn_X86_Run() noexcept
 restart_core:
 	PhysPt ip_point=SegPhys(cs)+reg_eip;
 	CacheBlock* const returned_from = return_source;
-	return_source = nullptr;
+	return_source                   = nullptr;
 #if C_DEBUGGER
 #if C_HEAVY_DEBUGGER
 		if (DEBUG_HeavyIsBreakpoint()) return debugCallback;
@@ -365,9 +365,7 @@ run_block:
 		}
 		cpudecoder=CPU_Core_Dyn_X86_Trap_Run;
 		return CBRET_NONE;
-	case BR_Return:
-		return_source = cache.block.running;
-		[[fallthrough]];
+	case BR_Return: return_source = cache.block.running; [[fallthrough]];
 	case BR_Normal:
 		/* Maybe check if we staying in the same page? */
 #if C_DEBUGGER

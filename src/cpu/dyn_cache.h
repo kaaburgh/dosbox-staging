@@ -116,7 +116,8 @@ static_assert(std::is_standard_layout_v<CacheBlock::Page>, "standard-layout is r
 static_assert(std::is_standard_layout_v<CacheBlock::Cache>, "standard-layout is required for offsetof");
 static_assert(std::is_standard_layout_v<CacheBlock::Hash>, "standard-layout is required for offsetof");
 static_assert(std::is_standard_layout_v<CacheBlock::Link>, "standard-layout is required for offsetof");
-static_assert(std::is_standard_layout_v<CacheBlock::ReturnTarget>, "standard-layout is required for offsetof");
+static_assert(std::is_standard_layout_v<CacheBlock::ReturnTarget>,
+              "standard-layout is required for offsetof");
 static_assert(std::is_standard_layout_v<CacheBlock>, "standard-layout is required for offsetof");
 
 static struct {
