@@ -722,7 +722,7 @@ static void dyn_push(DynReg * dynreg) {
 	gen_dop_word(DOP_OR,true,DREG(NEWESP),DREG(STACK));
 	gen_dop_word(DOP_ADD,true,DREG(STACK),DREG(SS));
 	// Inline TLB fast path; exception check is part of dyn_write_word
-	dyn_write_word_release(DREG(STACK),dynreg,decode.big_op);
+	dyn_write_word_release(DREG(STACK), dynreg, decode.big_op);
 	/* everything was ok, change register now */
 	gen_dop_word(DOP_MOV,true,DREG(ESP),DREG(NEWESP));
 	gen_releasereg(DREG(NEWESP));
@@ -735,7 +735,7 @@ static void dyn_pop(DynReg * dynreg,bool checked=true) {
 	gen_dop_word(DOP_ADD,true,DREG(STACK),DREG(SS));
 	if (checked) {
 		// Inline TLB fast path; exception check is part of dyn_read_word
-		dyn_read_word_release(DREG(STACK),dynreg,decode.big_op);
+		dyn_read_word_release(DREG(STACK), dynreg, decode.big_op);
 	} else {
 		if (decode.big_op) {
 			gen_call_function((void*)&mem_readd<MemOpMode::WithBreakpoints>,
