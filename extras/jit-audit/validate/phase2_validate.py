@@ -85,6 +85,11 @@ VARIANTS = [
 # measured in Phase 2. C6 (and builds containing it) charge one emulated cycle
 # less per formerly interpreted instruction, see PR #17.
 REFERENCE_GUEST = {'default': (969, 3.0, 326.7), 'c6': (969, 3.0, 326.9), 'all4': (969, 3.0, 326.9)}
+# With MSVC or clang-cl, PR #17's LAHF/SAHF detection (<cpuid.h>, __GNUC__ only)
+# is compiled out, so the 0.18 M SAHF of the demo stay in the normal-core
+# fallback; fewer emulated cycles are saved and the result rounds to 326.8
+# (observed on GitHub's windows-2025-vs2026 runner, clang-cl 22).
+REFERENCE_GUEST_MSVC_ABI = {'c6': (969, 3.0, 326.8), 'all4': (969, 3.0, 326.8)}
 PHASE2_SPEEDUP = {'c4': '+11.1% [+8.8, +13.4]', 'c1a': '+9.1% [+7.0, +11.3]',
                   'c6': '+8.8% [+6.8, +11.0]', 'c2': '+3.4% [+1.2, +5.8]',
                   'all4': '+37.1% [+29.5, +44.2]', 'c3': '+2.0% [-0.1, +4.2]',
@@ -163,6 +168,50 @@ def now_utc() -> str:
 
 def sha256_file(path: Path) -> str:
     return quake_files.sha256_file(path)
+
+
+def normalized_sha256(path: Path) -> str:
+    """SHA-256 of a binary with link-time metadata removed. MSVC-style PE
+    linkers embed a timestamp, a checksum and debug-directory data (PDB
+    GUID/age) that change on every link even when the code is identical;
+    those fields are zeroed. Other formats are hashed unchanged."""
+    data = bytearray(path.read_bytes())
+
+    def u16(o):
+        return int.from_bytes(data[o:o + 2], 'little')
+
+    def u32(o):
+        return int.from_bytes(data[o:o + 4], 'little')
+
+    if data[:2] == b'MZ' and len(data) > 0x40:
+        pe = u32(0x3C)
+        if data[pe:pe + 4] == b'PE\0\0':
+            coff = pe + 4
+            nsect, opt_size = u16(coff + 2), u16(coff + 16)
+            data[coff + 4:coff + 8] = bytes(4)            # TimeDateStamp
+            opt = coff + 20
+            plus = u16(opt) == 0x20B
+            data[opt + 64:opt + 68] = bytes(4)            # CheckSum
+            ndirs = u32(opt + (108 if plus else 92))
+            dirs = opt + (112 if plus else 96)
+            sects = [(u32(s + 12), max(u32(s + 8), u32(s + 16)), u32(s + 20))
+                     for s in range(opt + opt_size, opt + opt_size + 40 * nsect, 40)]
+
+            def rva_to_off(rva):
+                for va, size, raw in sects:
+                    if va <= rva < va + size:
+                        return raw + rva - va
+                return None
+
+            if ndirs > 6:
+                drva, dsize = u32(dirs + 48), u32(dirs + 52)
+                off = rva_to_off(drva) if drva else None
+                for i in range((dsize // 28) if off is not None else 0):
+                    e = off + 28 * i
+                    data[e + 4:e + 8] = bytes(4)          # entry TimeDateStamp
+                    size, ptr = u32(e + 16), u32(e + 24)
+                    data[ptr:ptr + size] = bytes(size)    # CodeView/POGO/... payload
+    return hashlib.sha256(data).hexdigest()
 
 
 def run(cmd, cwd=None, env=None, log: Path | None = None, check=True, timeout=None) -> subprocess.CompletedProcess:
@@ -449,16 +498,25 @@ def build_one(ctx, src: Path, v: Variant, log: Path, configure: bool) -> dict:
     if binary is None:
         raise RuntimeError(f'built binary not found under {build_dir}')
     v.binary = collect_binary(ctx, v.label, binary)
-    info.update({'binary_sha256': sha256_file(v.binary), 'binary_size': v.binary.stat().st_size,
+    info.update({'binary_sha256': sha256_file(v.binary),
+                 'binary_sha256_normalized': normalized_sha256(v.binary),
+                 'binary_size': v.binary.stat().st_size,
                  'build_seconds': round(time.monotonic() - t0, 1),
                  'cmake_cache': cmake_cache(build_dir),
                  'core_dyn_x86_compile_command': dyn_compile_command(build_dir)})
     cache = info['cmake_cache']
-    if cache.get('C_DYNAMIC_X86', 'ON').upper() in ('OFF', '0', 'FALSE'):
-        raise RuntimeError('C_DYNAMIC_X86 is OFF in this build: the code under test is not compiled')
-    # CMakeLists.txt uses ccache as compiler launcher whenever it finds it
+    compiled = info['core_dyn_x86_compile_command'] is not None or any(
+        'core_dyn_x86.cpp' in f.read_text(errors='replace') for f in build_dir.glob('*.vcxproj'))
+    if not compiled:
+        raise RuntimeError('core_dyn_x86.cpp is not part of this build (C_DYNAMIC_X86 off?): '
+                           'the code under test would not be compiled')
+    info['core_dyn_x86_compiled'] = True
+    # CMakeLists.txt sets ccache as compiler launcher whenever it finds it;
+    # launchers only take effect with the Ninja and Makefile generators
     ccache = cache.get('CCACHE_PROGRAM', '')
-    info['compiler_launcher'] = 'ccache' if ccache and not ccache.endswith('-NOTFOUND') else None
+    gen = cache.get('CMAKE_GENERATOR', '')
+    info['compiler_launcher'] = ('ccache' if ccache and not ccache.endswith('-NOTFOUND')
+                                 and ('Ninja' in gen or 'Makefiles' in gen) else None)
     comp = cache.get('CMAKE_CXX_COMPILER')
     if comp and not hostplat.IS_WINDOWS:
         info['compiler_version'] = tool_version([comp, '--version'])
@@ -507,10 +565,15 @@ def build_all(ctx, variants: list[Variant]) -> dict:
                 build_dir = src / 'build' / ctx.preset
                 run(['cmake', '--build', '--preset', ctx.preset] +
                     (['--parallel', str(ctx.args.jobs)] if ctx.args.jobs else []), cwd=src, log=log)
-                again = sha256_file(find_binary(build_dir))
-                report['rebuild_check'] = {'first': report['variants']['base']['binary_sha256'],
-                                           'again': again,
-                                           'identical': again == report['variants']['base']['binary_sha256']}
+                again_bin = find_binary(build_dir)
+                first = report['variants']['base']
+                again_raw, again_norm = sha256_file(again_bin), normalized_sha256(again_bin)
+                report['rebuild_check'] = {
+                    'first': first['binary_sha256'], 'again': again_raw,
+                    'raw_identical': again_raw == first['binary_sha256'],
+                    'identical': again_norm == first['binary_sha256_normalized'],
+                    'note': 'compared with link timestamp, checksum and debug-directory data '
+                            'zeroed (PE); ELF binaries are compared byte for byte'}
             except Exception as e:
                 report['rebuild_check'] = {'error': str(e)[-2000:]}
         runtime_src = src
@@ -789,7 +852,10 @@ def analyse_bench(ctx, info: dict) -> dict:
         ok = [r for r in lr if r['status'] == 'ok']
         results = [(r['frames'], r['guest_seconds'], r['fps']) for r in ok]
         modal = max(set(results), key=results.count) if results else None
-        ref = REFERENCE_GUEST.get('base' if lab == 'base2' else lab, REFERENCE_GUEST['default'])
+        key = 'base' if lab == 'base2' else lab
+        ref = REFERENCE_GUEST.get(key, REFERENCE_GUEST['default'])
+        if ctx.msvc_abi and key in REFERENCE_GUEST_MSVC_ABI:
+            ref = REFERENCE_GUEST_MSVC_ABI[key]
         ref_s = (str(ref[0]), str(ref[1]), str(ref[2]))
         dev = [r for r in ok if (r['frames'], r['guest_seconds'], r['fps']) != modal]
         det['labels'][lab] = {'runs': len(lr), 'ok': len(ok), 'modal_result': modal,
@@ -800,6 +866,7 @@ def analyse_bench(ctx, info: dict) -> dict:
                                    'demo_cpu_s': r['demo_cpu_s']} for r in dev]
         det['failed_runs'] += [{'number': r['number'], 'label': lab, 'status': r['status']}
                                for r in lr if r['status'] != 'ok']
+    det['reference_set'] = 'MSVC ABI (clang-cl/MSVC): c6/all4 326.8' if ctx.msvc_abi else 'GCC/Clang: c6/all4 326.9'
     det['deterministic'] = not det['deviating_runs'] and not det['failed_runs']
     det['all_match_phase2_reference'] = all(v['matches_phase2_reference'] for v in det['labels'].values())
     # diagnostics: every deviating/failed run plus one normal run of the same label
@@ -947,8 +1014,12 @@ def summarize(ctx) -> None:
                          f'{b.get("binary_sha256", "")[:16]} | {ok} |')
         rc = s.get('builds', {}).get('rebuild_check')
         if rc:
-            lines += ['', f'Incremental rebuild check (baseline rebuilt last): '
-                          f'{"identical" if rc.get("identical") else rc}']
+            if rc.get('identical'):
+                desc = 'identical' if rc.get('raw_identical') else \
+                    'identical code (differs only in link timestamp/checksum/debug directory)'
+            else:
+                desc = f'DIFFERENT: {rc}'
+            lines += ['', f'Incremental rebuild check (baseline rebuilt last): {desc}']
             if rc.get('identical') is False:
                 overall.append('baseline rebuild produced a different binary')
         lines.append('')
@@ -987,7 +1058,7 @@ def summarize(ctx) -> None:
         lines += ['## Quake 1.06 timedemo demo1 (fixed 1,000,000 cycles)', '']
         lines.append(f'Determinism: **{"OK" if det["deterministic"] else "FAILED"}** '
                      f'({len(det["deviating_runs"])} deviating, {len(det["failed_runs"])} failed runs); '
-                     f'guest results match Phase 2 reference: '
+                     f'guest results match Phase 2 reference ({det.get("reference_set")}): '
                      f'{"yes" if det["all_match_phase2_reference"] else "NO"}')
         if not det['deterministic']:
             overall.append('benchmark determinism FAILED (see bench/determinism.json and diagnostics/bench)')
@@ -1019,6 +1090,12 @@ def summarize(ctx) -> None:
                 lines.append(f'| {lab} | {r["speedup_pct"]:+.2f}% [{r["boot95_pct"][0]:+.2f}, '
                              f'{r["boot95_pct"][1]:+.2f}] | {r["blocks"]} | {pl.get("median_s", "")} | '
                              f'{pl.get("cv_pct", "")} | {PHASE2_SPEEDUP.get(lab, "")} |')
+            cyc = st.get('speedup_vs_base_thread_cycles')
+            if cyc:
+                lines += ['', 'Same analysis with QueryThreadCycleTime (cycle-accurate; GetThreadTimes above has '
+                              'clock-tick resolution): ' + ', '.join(
+                                  f'{lab} {r["speedup_pct"]:+.2f}% [{r["boot95_pct"][0]:+.2f}, {r["boot95_pct"][1]:+.2f}]'
+                                  for lab, r in cyc.items() if lab not in ('base', 'base2'))]
             lines += ['', 'Speed-up = geometric mean over blocks of (reference CPU time / variant CPU time) − 1, '
                           'reference = geometric mean of base and base2 in the same block; percentile bootstrap.']
         else:
@@ -1147,6 +1224,7 @@ def main(argv=None) -> int:
     ctx.summary = {'run_id': ctx.run_id, 'runner_version': RUNNER_VERSION, 'mode': args.mode, 'errors': []}
     ctx.runtime = ctx.work / 'runtime'
     ctx.cpus = []
+    ctx.msvc_abi = False
     say(ctx, f'Phase 2 validation {ctx.run_id}')
     say(ctx, f'work directory: {ctx.work}')
     wanted = [v for v in VARIANTS if not v.optional or args.with_optional]
@@ -1215,6 +1293,9 @@ def main(argv=None) -> int:
             write_json(ctx.results / 'quake.json', prov)
             set_stage(ctx, 'quake', 'done')
             set_stage(ctx, 'bench', 'running')
+            base_cache = ctx.summary.get('builds', {}).get('variants', {}).get('base', {}).get('cmake_cache', {})
+            ctx.msvc_abi = 'MSVC' in (base_cache.get('CMAKE_CXX_COMPILER_ID', ''),
+                                      base_cache.get('CMAKE_CXX_SIMULATE_ID', ''))
             info = bench(ctx, wanted, game)
             ctx.summary['bench'] = analyse_bench(ctx, info)
             ctx.summary['bench']['params'] = {**info['params'], 'seed': info['seed'],
