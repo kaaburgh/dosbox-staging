@@ -1615,7 +1615,7 @@ static void dyn_exit_link(Bits eip_change) {
 
 static void dyn_branched_exit(BranchTypes btype,int32_t eip_add) {
 	Bitu eip_base=decode.code-decode.code_start;
- 	gen_needflags_protected();
+	gen_needflags_protected();
 	dyn_save_noncritical_regs();
 	gen_releasereg(DREG(FLAGS));
 	gen_releasereg(DREG(EIP));
@@ -2398,7 +2398,10 @@ restart_prefix:
 		case 0xd2:dyn_grp2_eb(grp2_cl);break;
 		case 0xd3:dyn_grp2_ev(grp2_cl);break;
 		// SALC
-		case 0xd6:gen_needflags_protected();gen_dop_byte(DOP_SBB,DREG(EAX),0,DREG(EAX),0);break;
+		case 0xd6:
+			gen_needflags_protected();
+			gen_dop_byte(DOP_SBB, DREG(EAX), 0, DREG(EAX), 0);
+			break;
 		// XLAT
 		case 0xd7:dyn_xlat();break;
 		//FPU
