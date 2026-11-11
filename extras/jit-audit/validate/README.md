@@ -116,7 +116,8 @@ Notes:
 ## Windows x86-64
 
 > **Verified on GitHub Actions only** (`windows-2025-vs2026`: Windows Server
-> 2025, Visual Studio 2026, clang-cl 22, vcpkg, AMD EPYC, 4 vCPU). Not yet
+> 2025, Visual Studio 2026, clang-cl 22, vcpkg, AMD EPYC 7763, 4 vCPU), in
+> `--mode quick` and `--mode full --with-optional`, both Overall OK. Not yet
 > run on a desktop Windows machine. Please report the first results,
 > including failures; the ZIP is produced even if a stage fails.
 
@@ -153,7 +154,13 @@ Notes:
   is reported only where WMI exposes it without administrator rights.
 - With the Clang/MSVC toolchain the LAHF/SAHF detection of PR #17 is compiled
   out, so on Windows C6 keeps SAHF/LAHF in the interpreter fallback. Only its
-  BT/SETcc part is active.
+  BT/SETcc part is active. Fewer emulated cycles are saved, so the expected
+  guest result for `c6`/`all4` is 326.8 fps there; the runner picks the
+  reference from the compiler.
+- MSVC-style links embed a timestamp, checksum and PDB GUID. The rebuild check
+  therefore compares binaries with those PE fields zeroed.
+- vcpkg downloads dependency sources during configure. Transient download
+  errors are retried (`--configure-retries`, default 2).
 
 ## macOS (Apple silicon) and other ARM64 hosts
 
@@ -196,7 +203,17 @@ Not applicable, and the runner says so and stops:
 `diagnostics/`, `logs/`, `status.json` and `README_FOR_REVIEWER.md`. The
 reviewer README lists what to check.
 
-Phase 2 reference results (Intel Emerald Rapids VM, Linux) for comparison:
-C4 +11.1% [+8.8, +13.4], C1a +9.1% [+7.0, +11.3], C6 +8.8% [+6.8, +11.0],
-C2 +3.4% [+1.2, +5.8], all4 +37.1% [+29.5, +44.2]; C3 and C1b not
-significant. Effects on other CPUs (AMD in particular) are expected to differ.
+Reference results for comparison (speed-up vs base, 95% CI):
+
+| Variant | Linux, Intel Emerald Rapids VM (Phase 2, pooled) | Windows, AMD EPYC 7763 (GitHub Actions, 20 blocks) |
+|---|---|---|
+| all4 | +37.1% [+29.5, +44.2] | +19.9% [+19.3, +20.6] |
+| c4 | +11.1% [+8.8, +13.4] | +3.1% [+2.6, +3.5] |
+| c1a | +9.1% [+7.0, +11.3] | +7.0% [+5.9, +7.8] |
+| c6 | +8.8% [+6.8, +11.0] | +5.8% [+5.1, +6.5] |
+| c2 | +3.4% [+1.2, +5.8] | +2.9% [+2.3, +3.4] |
+| c3 | +2.0% [−0.1, +4.2] | +2.1% [+1.4, +2.8] |
+| c1b | +1.6% [−0.4, +3.5] | +1.4% [+1.0, +1.8] |
+
+The effect of C4 (`POPFQ` removal) depends strongly on the CPU
+microarchitecture.
