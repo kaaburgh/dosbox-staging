@@ -30,6 +30,26 @@ core's helper-based x87 memory accesses use the legacy nested
 `PAGING_PageFault` path, so the guest handler sees the EIP of the block start
 and stale register values; PR #10 changes this for m32 loads only.
 
+### Phase 2 gates
+
+Each test derives its expected values from the Intel SDM, not from the normal
+core; most have a negative control (`-DNEG` or a deliberately broken build).
+
+| File | What it checks | Pass |
+|---|---|---|
+| `flagrst.asm` + `check_flagrst.py` | Every path on which the dynamic core reloads saved guest flags (CMC/STC/CLC, 16 Jcc, LOOPE/LOOPNE, SALC, shift by CL=0, ROL, IMUL, SHLD) for all 64 combinations of the six arithmetic flags, from a POPF image and from live flags saved around a memory access, all GPRs live. The checker holds the SDM model. | `check_flagrst.py out.txt` → 0 deviations |
+| `flagops.asm` | BT/BTS/BTR/BTC r,r / r,imm8, all SETcc (registers and memory), SAHF/LAHF over all 64 flag combinations, with canaries in all GPRs and both live and saved host-flag paths. Run with `--cycles max`. | `FLAGOPS deviations=0000` |
+| `x87load.asm` | All 16 x87 m32-source forms with the operand at page offsets 0xFFC–0xFFF and in mode-13h VGA memory; ST0/status results and preservation of GPRs and EFLAGS. | `X87LOAD deviations=00` |
+| `stackops.asm` | PUSH/POP/CALL/RET: operand sizes, PUSH ESP/POP ESP/POP [ESP], 16-bit and real-mode stacks, page crossing, ring-3 accesses, `#PF` with retry through a task-gate handler. 305 checks plus observations (no SDM result) that must match the baseline. | `STACKOPS fails=00000000` on the dynamic core (the normal core has one pre-existing failure: faulting `CALL` pushes the wrong EIP) |
+| `pfregs.asm` | `pfprec.asm` plus cases in which inline x87 m32 loads with live registers precede a faulting legacy-helper load in the same block; prints the handler's PUSHAD frame. | Output identical to the baseline build |
+
+`microbench/flag_restore_check.c` runs the exact byte sequence of the
+POPFQ-free flag restore (candidate C4) for all 8192 relevant saved-image
+values and compares it with `POPFQ` (`gcc -O2 -o flag_restore_check flag_restore_check.c`; exit code 0 = pass).
+
+Phase 2 results (draft PRs, timing, counters, negative results) are in
+`kaaburgh/engineering-lab`, `benchmarks/quake-staging/research/phase2-2026-11-11/`.
+
 ## Tools (`tools/`)
 
 - `run_dos_test.py` — run one `.COM` headlessly and print its redirected stdout.
