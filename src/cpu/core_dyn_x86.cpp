@@ -17,6 +17,12 @@
 #include <winbase.h>
 #endif
 
+#if defined(_MSC_VER)
+#include <intrin.h>
+#else
+#include <cpuid.h>
+#endif
+
 #if defined(HAVE_MPROTECT) || defined(HAVE_MMAP)
 #include <sys/mman.h>
 
