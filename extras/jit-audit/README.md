@@ -1,5 +1,9 @@
 # JIT audit tools (Phase 1, research only)
 
+> To re-check the Phase 2 pull requests on your own machine with one
+> command (build, guest tests, Quake benchmark, ZIP for review), see
+> [validate/README.md](validate/README.md).
+
 Research tooling and guest tests from the independent audit of the Quake 1.06
 x86-64 dynamic-core experiments (PR #1–#10). Nothing here is built into
 DOSBox Staging; the instrumentation header is applied to a separate checkout
@@ -55,8 +59,9 @@ Phase 2 results (draft PRs, timing, counters, negative results) are in
 
 - `run_dos_test.py` — run one `.COM` headlessly and print its redirected stdout.
 - `bench_quake.py` — interleaved, seeded Quake timedemo runner. Records Quake's
-  FPS and the main thread's CPU time from `/proc/<pid>/task/<pid>/schedstat`
-  between "Playing demo from" and the result line. With fixed
+  FPS and the main thread's CPU time (Linux `/proc/<pid>/task/<pid>/schedstat`,
+  Windows `GetThreadTimes`, see `hostplat.py`) between "Playing demo from" and
+  the result line; optional `--affinity`, `--run-logs`, `--sensors`. With fixed
   `--cycles 1000000` the guest work is deterministic (identical guest
   seconds/FPS in every run).
 - `summarize_bench.py` — per-label medians/CV and within-block paired ratios
