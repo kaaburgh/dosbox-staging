@@ -154,11 +154,10 @@ static void dh_fpu_load32_inline()
 	gensrc->notusable = false;
 	dyn_savestate(&callstate);
 
-	opcode(tmp).set64().setea(gensrc->index, -1, 0, 3).Emit8(0x8D); // lea
-	                                                                // tmp,
-	                                                                // [src+3]
-	opcode(4).set64().setimm(~0xFFF, 4).setrm(tmp).Emit8(0x81); // and tmp,
-	                                                            // ~0xFFF
+	// lea tmp, [src+3]
+	opcode(tmp).set64().setea(gensrc->index, -1, 0, 3).Emit8(0x8D);
+	// and tmp, ~0xFFF
+	opcode(4).set64().setimm(~0xFFF, 4).setrm(tmp).Emit8(0x81);
 	opcode(gensrc->index).set64().setrm(tmp).Emit8(0x39); // cmp tmp, src
 	const uint8_t* page_brk = gen_create_branch(BR_NBE);
 	opcode(5).setrm(tmp).setimm(12, 1).Emit8(0xC1); // shr tmpd, 12
