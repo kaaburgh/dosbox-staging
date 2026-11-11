@@ -115,8 +115,9 @@ Notes:
 
 ## Windows x86-64
 
-> **Not yet verified on a Windows machine.** The Windows code paths are
-> implemented but have not been run. Please report the first results,
+> **Verified on GitHub Actions only** (`windows-2025-vs2026`: Windows Server
+> 2025, Visual Studio 2026, clang-cl 22, vcpkg, AMD EPYC, 4 vCPU). Not yet
+> run on a desktop Windows machine. Please report the first results,
 > including failures; the ZIP is produced even if a stage fails.
 
 Prerequisites, as in [docs/build-windows.md](../../../docs/build-windows.md):
