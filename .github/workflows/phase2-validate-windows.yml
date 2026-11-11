@@ -1,0 +1,119 @@
+# TEMPORARY: Windows test of extras/jit-audit/validate (PR #20).
+# Exists only on throw-away phase2/wintest-* branches and runs on their
+# creation; it is not part of any pull request and is deleted afterwards.
+name: Phase 2 validation runner (Windows, temporary)
+permissions: read-all
+
+on:
+  create:
+
+jobs:
+  smoke:
+    name: Host layer smoke test
+    if: github.ref_type == 'branch' && startsWith(github.ref_name, 'phase2/wintest')
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Install NASM
+        shell: pwsh
+        run: choco install nasm --no-progress -y
+
+      - name: Smoke test hostplat, presets, Quake files
+        shell: python
+        run: |
+          import json, os, subprocess, sys, time
+          from pathlib import Path
+          sys.path.insert(0, 'extras/jit-audit/tools')
+          sys.path.insert(0, 'extras/jit-audit/validate')
+          import hostplat, quake_files, phase2_validate as P
+          print('python', sys.version)
+          print('platform_gate ->', P.platform_gate())
+          print('default_preset ->', P.default_preset(), '| nasm ->', P.find_nasm())
+          meta = hostplat.host_metadata()
+          print(json.dumps(meta, indent=1, default=str))
+          cpus = hostplat.pick_cpus(2)
+          print('pick_cpus ->', cpus)
+          busy = 'import time\nt = time.time()\nwhile time.time() - t < 4: pass\n'
+          p = subprocess.Popen([sys.executable, '-c', busy], **hostplat.popen_kwargs())
+          time.sleep(0.5)
+          print('set_affinity ->', hostplat.set_affinity(p.pid, cpus))
+          clk = hostplat.ProcessClock(p.pid)
+          a, ca, t0 = clk.main_ns(), clk.cycles(), time.monotonic()
+          time.sleep(2.0)
+          b, cb, t1 = clk.main_ns(), clk.cycles(), time.monotonic()
+          ratio = (b - a) / 1e9 / (t1 - t0)
+          print(f'main-thread CPU/wall over {t1 - t0:.2f} s: {ratio:.3f} (expect ~1.0); '
+                f'cycles {cb - ca}; process ns {clk.process_ns()}; wait {clk.wait_ns()}')
+          hostplat.kill(p)
+          p.wait()
+          print('kill ok, returncode', p.returncode)
+          print('sensor_sample ->', hostplat.sensor_sample(cpus))
+          t = time.monotonic()
+          game, prov = quake_files.prepare(Path(r'C:\p2v-smoke'))
+          print(f'quake files in {time.monotonic() - t:.1f} s ->', json.dumps(prov))
+          if not 0.8 < ratio < 1.2:
+              sys.exit('main-thread CPU time does not track a busy thread')
+
+  validate:
+    name: phase2_validate.py --mode quick
+    if: github.ref_type == 'branch' && startsWith(github.ref_name, 'phase2/wintest')
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 300
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Set up vcpkg
+        uses: ./.github/actions/setup-vcpkg
+        with:
+          name_os: "windows"
+          arch: "x64"
+
+      - name: Set up CMake
+        uses: lukka/get-cmake@f86dd60acae0d132056913e248bdabf0e0580b7a # v4.4.5
+
+      - name: Install NASM
+        shell: pwsh
+        run: choco install nasm --no-progress -y
+
+      - name: Run the validation runner (quick)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          python --version
+          python extras\jit-audit\validate\phase2_validate.py --mode quick --work C:\p2v
+          Write-Host "runner exit code: $LASTEXITCODE"
+          exit 0
+
+      - name: Show results
+        if: always()
+        shell: pwsh
+        run: |
+          $r = Get-ChildItem C:\p2v\results -Directory -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
+          if (-not $r) { Write-Host 'no results directory'; exit 0 }
+          foreach ($f in 'summary.md', 'status.json', 'builds.json', 'tests\verdicts.json',
+                         'bench\stats.json', 'bench\determinism.json', 'quake.json', 'metadata.json') {
+            $p = Join-Path $r.FullName $f
+            if (Test-Path $p) { Write-Host "===== $f"; Get-Content $p | Select-Object -First 400 }
+          }
+          Get-ChildItem (Join-Path $r.FullName 'logs') -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "===== logs\$($_.Name) (last 60 lines)"; Get-Content $_.FullName -Tail 60 }
+          Get-ChildItem (Join-Path $r.FullName 'diagnostics') -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 6 | ForEach-Object {
+            Write-Host "===== diagnostics\$($_.Name) (last 40 lines)"; Get-Content $_.FullName -Tail 40 }
+
+      - name: Upload results ZIP
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: phase2-validation-windows
+          path: C:\p2v\results\*.zip
+          retention-days: 7
+          if-no-files-found: warn
