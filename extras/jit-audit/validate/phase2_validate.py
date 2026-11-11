@@ -491,7 +491,19 @@ def build_one(ctx, src: Path, v: Variant, log: Path, configure: bool) -> dict:
     info = {'label': v.label, 'sha': v.sha, 'preset': preset, 'build_mode': ctx.args.build_mode}
     if configure or not (build_dir / 'CMakeCache.txt').is_file():
         cmd = ['cmake', '--preset', preset, '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', *ctx.args.cmake_arg]
-        run(cmd, cwd=src, log=log)
+        # vcpkg downloads dependency sources during configure; retry on the
+        # transient network failures it does not retry itself
+        for attempt in range(ctx.args.configure_retries + 1):
+            try:
+                run(cmd, cwd=src, log=log)
+                break
+            except RuntimeError:
+                if attempt == ctx.args.configure_retries:
+                    raise
+                info.setdefault('configure_retries_used', 0)
+                info['configure_retries_used'] += 1
+                say(ctx, f'  configure failed, retrying in 30 s ({attempt + 1}/{ctx.args.configure_retries})')
+                time.sleep(30)
     jobs = ['--parallel', str(ctx.args.jobs)] if ctx.args.jobs else []
     run(['cmake', '--build', '--preset', preset, *jobs], cwd=src, log=log)
     binary = find_binary(build_dir)
@@ -548,11 +560,11 @@ def build_all(ctx, variants: list[Variant]) -> dict:
                 info['compat_shims_applied'] = shims
                 report['variants'][v.label] = info
                 say(ctx, f'  ok in {info["build_seconds"]} s, sha256 {info["binary_sha256"][:16]}')
+                first = False
             except Exception as e:  # keep going with the other variants
                 v.binary = None
                 report['variants'][v.label] = {'error': str(e)[-3000:]}
                 say(ctx, f'  BUILD FAILED: {str(e).splitlines()[0]}')
-            first = False
             write_json(ctx.results / 'builds.json', report)
         base = variants[0]
         if base.binary is not None and len(variants) > 1:
@@ -1179,6 +1191,8 @@ def parse_args(argv=None):
                    help='incremental: one runner-owned worktree, variants checked out in turn (fast); '
                         'separate: one worktree and full build per variant')
     p.add_argument('--jobs', type=int, default=0, help='build parallelism (default: CMake/Ninja default)')
+    p.add_argument('--configure-retries', type=int, default=2,
+                   help='retries of the CMake configure step (vcpkg downloads), default 2')
     p.add_argument('--test-jobs', type=int, default=0)
     p.add_argument('--test-timeout', type=int, default=120)
     p.add_argument('--quake-dir', type=Path)
