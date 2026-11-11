@@ -1297,9 +1297,9 @@ static void gen_jmp_return_target(CacheBlock* block)
 	if (x64gen.flagsactive) {
 		IllegalOption("gen_jmp_return_target");
 	}
-	opcode(1).setabsaddr(&reg_eip).Emit8(0x8B);       // mov ecx, [reg_eip]
-	opcode(1).setabsaddr(&Segs.phys[cs]).Emit8(0x03); // add ecx,
-	                                                  // [Segs.phys[cs]]
+	// ecx = reg_eip + Segs.phys[cs]
+	opcode(1).setabsaddr(&reg_eip).Emit8(0x8B);
+	opcode(1).setabsaddr(&Segs.phys[cs]).Emit8(0x03);
 	opcode(0).set64().setimm((Bitu)block, 8).Emit8Reg(0xB8); // mov rax, block
 	// cmp ecx, [rax+return_target.linear]
 	opcode(1).setea(0, -1, 0, offsetof(CacheBlock, return_target.linear)).Emit8(0x3B);
