@@ -135,6 +135,59 @@ static void dh_fpu_mem(uint8_t inst, Bitu reg=decode.modrm.reg, void* mem=&dyn_d
 	opcode(reg).setabsaddr(mem).Emit8(inst);
 }
 
+// Stores dyn_dh_fpu.temp.m1 to the 32-bit memory operand at EA and releases
+// EA. The in-page TLB hit case is inlined (same condition as the first branch
+// of mem_writed_inline); everything else calls FPU_FST_32 as before.
+static void dh_fpu_store32_inline()
+{
+#if C_DEBUGGER && C_HEAVY_DEBUGGER
+	// the inline path would bypass the memory write breakpoint checks
+	gen_call_function((void*)&FPU_FST_32, "%Drd", DREG(EA));
+#else
+	DynState callstate;
+
+	gen_protectflags();
+	GenReg* gendst = FindDynReg(DREG(EA));
+	gen_releasereg(DREG(EA));
+	gendst->notusable = true;
+	const uint8_t tmp = GetNextReg();
+	gendst->notusable = false;
+	dyn_savestate(&callstate);
+
+	// lea tmp, [dst+3]
+	opcode(tmp).set64().setea(gendst->index, -1, 0, 3).Emit8(0x8D);
+	// and tmp, ~0xFFF
+	opcode(4).set64().setimm(~0xFFF, 4).setrm(tmp).Emit8(0x81);
+	opcode(gendst->index).set64().setrm(tmp).Emit8(0x39); // cmp tmp, dst
+	const uint8_t* page_brk = gen_create_branch(BR_NBE);
+	opcode(5).setrm(tmp).setimm(12, 1).Emit8(0xC1); // shr tmpd, 12
+	// mov tmp, [8*tmp+paging.tlb.write(rbp)]
+	opcode(tmp)
+	        .set64()
+	        .setea(5, tmp, 3, (Bits)PAGING_GetWriteBaseAddress() - (Bits)&cpu_regs)
+	        .Emit8(0x8B);
+	opcode(tmp).set64().setrm(tmp).Emit8(0x85); // test tmp, tmp
+	const uint8_t* nomap = gen_create_branch(BR_Z);
+	// The released EA register is free once the host address is formed
+	opcode(gendst->index).set64().setrm(tmp).Emit8(0x01); // add tmp, dst
+	// mov dstd, [m1]
+	opcode(gendst->index).setabsaddr(&dyn_dh_fpu.temp.m1).Emit8(0x8B);
+	opcode(gendst->index).setea(tmp, -1, 0, 0).Emit8(0x89); // mov [tmp], dstd
+	// the helper call below can be longer than a short jump reaches
+	const uint8_t* jmp_loc = gen_create_jump();
+
+	gen_fill_branch(page_brk);
+	gen_fill_branch(nomap);
+	if (gendst->index != ARG0_REG) {
+		x64gen.regs[reg_args[0]]->Clear();
+		opcode(ARG0_REG).setrm(gendst->index).Emit8(0x8B); // mov arg0, dst
+	}
+	gen_call_ptr((void*)&FPU_FST_32);
+	dyn_synchstate(&callstate);
+	gen_fill_branch_long(jmp_loc);
+#endif
+}
+
 static void dh_fpu_esc0(){
 	dyn_get_modrm(); 
 	if (decode.modrm.val >= 0xc0) {
@@ -167,7 +220,7 @@ static void dh_fpu_esc1(){
 		case 0x02: /* FST float*/
 		case 0x03: /* FSTP float*/
 			dh_fpu_mem(0xd9);
-			gen_call_function((void*)&FPU_FST_32,"%Drd",DREG(EA));
+			dh_fpu_store32_inline();
 			break;
 		case 0x04: /* FLDENV */
 			gen_call_function((void*)&FPU_FLDENV_DH,"%Drd",DREG(EA));
@@ -249,7 +302,7 @@ static void dh_fpu_esc3(){
 		case 0x02:	/* FIST */
 		case 0x03:	/* FISTP */
 			dh_fpu_mem(0xdb);
-			gen_call_function((void*)&FPU_FST_32,"%Drd",DREG(EA));
+			dh_fpu_store32_inline();
 			break;
 		case 0x05:	/* FLD 80 Bits Real */
 			gen_call_function((void*)&FPU_FLD_80,"%Drd",DREG(EA));
